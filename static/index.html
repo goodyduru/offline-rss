@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+
+        <title>Offline RSS Reader</title>
+        <link href="main.css" rel="stylesheet">
+        <script src="main.js" defer></script>
+    </head>
+    <body>
+        <div class="wrapper">
+            <aside>
+                <ul>
+                    <li><a href="#article-list">Article List</a></li>
+                    <li><a href="#single-article">Single Article</a></li>
+                    <li><a href="#feed-list">All Feeds</a></li>
+                    <li><a href="#add-feed">Add Feed</a></li>
+                </ul>
+            </aside>
+            <main id="article-list">Article List</main>
+            <main id="single-article" class="d-none">Single Article</main>
+            <main id="feed-list" class="d-none">All Feeds</main>
+            <main id="add-feed" class="d-none">
+                <form id="add-feed-form">
+                    <fieldset>
+                        <label for="feed-url" class="d-none">URL:</label>
+                        <input type="url" name="feed-url" id="feed-url" placeholder="URL" required>
+                    </fieldset>
+                    <button id="add-feed-btn">Add Feed</button>
+                </form>
+            </main>
+        </div>
+    </body>
+</html>
