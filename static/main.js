@@ -40,8 +40,7 @@ function showUrlMain() {
 }
 
 async function addFeed(evt) {
-    const response = await fetchFeed(evt);
-    const text = await response.text();
+    const text = await fetchFeed(evt);
     let type = "text/html";
     const content_type = response.headers.get("Content-Type");
     if ( content_type.indexOf("text/xml") > -1 || content_type.indexOf("application/xml") > -1 ) {
@@ -66,18 +65,8 @@ async function fetchFeed(evt) {
         alert("Invalid url");
         return;
     }
-    
-    const response = await fetch("/proxy", {
-        headers: {
-            "Rss-Url": url,
-        }
-    });
-
-    if (!response.ok) {
-        alert("Fetcher error!");
-        return;
-    }
-    return response;
+    let text = await getFeed(url);
+    return text;
 }
 
 async function parseRSS(dom) {
@@ -133,8 +122,15 @@ async function parseAtom(dom) {
     }
     let site = {title: result.title, feed_url: result.feed_url, site_url: result.site_url, 
         description: result.description, hash: cyrb53(feed.innerHTML)};
-    let site_id = await getOrCreateSite(site);
-    if ( site_id == 0 ) {
+    let site_id = 0;
+    try {
+        site_id = await getOrCreateSite(site);
+    } catch (error) {
+        if ( error == "ConstraintError" ) {
+            console.log("You've added this site before");
+        } else {
+            console.error("Error code:", error);
+        }
         return;
     }
     let items = dom.querySelectorAll("entry");
@@ -249,8 +245,8 @@ async function getOrCreateSite(site) {
                 addReq.onsuccess = (addEvt) => {
                     resolve(addEvt.target.result);
                 };
-                addReq.onerror = () => {
-                    reject(0);
+                addReq.onerror = (addEvt) => {
+                    reject(addEvt.target.error.name);
                 }
 
             } else {
@@ -258,8 +254,8 @@ async function getOrCreateSite(site) {
                 resolve(id);
             }
         };
-        req.onerror = () => {
-            reject(0);
+        req.onerror = (evt) => {
+            reject(evt.target.error.name);
         };
     });
 }
