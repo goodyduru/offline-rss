@@ -13,7 +13,7 @@ function addEventListeners() {
         });
     });
 
-    document.getElementById("add-feed-btn").addEventListener("click", (evt) => addFeed(evt));
+    document.getElementById("add-feed-btn").addEventListener("click", (evt) => showFeeds(evt));
 }
 
 function showOneMain(href) {
@@ -39,34 +39,67 @@ function showUrlMain() {
     showOneMain(loc.hash);
 }
 
-async function addFeed(evt) {
-    const text = await fetchFeed(evt);
-    let type = "text/html";
-    const content_type = response.headers.get("Content-Type");
-    if ( content_type.indexOf("text/xml") > -1 || content_type.indexOf("application/xml") > -1 ) {
-        type = "text/xml";
-    }
-    const dom = new window.DOMParser().parseFromString(text, type);
-    let feed = dom.querySelector("rss");
-    if (feed != null) {
-        await parseRSS(dom);
+async function showFeeds(evt) {
+    evt.preventDefault();
+    const feeds = await fetchFeedObjects(evt);
+    if ( feeds == null || feeds.urls.length == 0 ) {
+        alert("No feed in the given website.");
         return;
     }
-    feed = dom.querySelector("feed");
-    if ( feed != null ) {
-        await parseAtom(dom);
+    let unorderedList = document.createElement("ul");
+    const feed_list = document.querySelector(ARTICLE_LIST_HREF);
+    feed_list.replaceChildren();
+    feed_list.appendChild(unorderedList);
+    for ( url of feeds.urls ) {
+        let feedObj = feeds.feed_map.get(url);
+        if ( feedObj == 'undefined' || feedObj == null ) {
+            continue;
+        }
+        html = showFeed(url, feedObj);
+        unorderedList.insertAdjacentHTML('beforeend', html);
+        let myAddFeed = addFeed.bind({feedObj: feedObj});
+        document.getElementById(`${feedObj.hash}`).addEventListener('click', myAddFeed);
     }
+    showOneMain(ARTICLE_LIST_HREF);
 }
 
-async function fetchFeed(evt) {
+async function fetchFeedObjects(evt) {
     evt.preventDefault();
     let url = document.getElementById("feed-url").value;
     if ( !URL.canParse(url) ) {
         alert("Invalid url");
-        return;
+        return null;
     }
-    let text = await getFeed(url);
-    return text;
+    let feeds = await findFeeds(url);
+    return feeds;
+}
+
+function showFeed(url, feedObj) {
+    let html = "<li><div>";
+    feedObj.site_url = url;
+    if ( feedObj.title != "" ) {
+        html += `<h2>${feedObj.title}</h2>`;
+    }
+    html += `<p>Visit the site link: <a href="${feedObj.site_url}">${feedObj.site_url}</a></p>`;
+    if ( feedObj.description != "" ) {
+        html += `<div>${feedObj.description}</div>`;
+    }
+    html += "<ul>";
+    for ( i = 0; i < 3; i++ ) {
+        html += "<li>";
+        if ( feedObj.articles[i].title != "" ) {
+            html += `<strong>${feedObj.articles[i].title}</strong>`;
+        }
+        html += "</li>";
+    }
+    html += "</ul>";
+    html += `<form><button id="${feedObj.hash}">Add Feed</button></form>`;
+    return html;
+}
+
+function addFeed(evt) {
+    evt.preventDefault();
+    console.log(this.feedObj);
 }
 
 async function parseRSS(dom) {
@@ -184,29 +217,8 @@ function printFeed(feed) {
         html += "</li>";
     });
     html += "</ul>";
-    const article_list = document.querySelector(ARTICLE_LIST_HREF);
-    article_list.replaceChildren();
-    article_list.insertAdjacentHTML("beforeend", html);
     showOneMain(ARTICLE_LIST_HREF);
 }
-
-/**
- * Hash function by bryc
- * https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
- */
-const cyrb53 = function(str, seed = 0) {
-    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
-    for(let i = 0, ch; i < str.length; i++) {
-      ch = str.charCodeAt(i);
-      h1 = Math.imul(h1 ^ ch, 2654435761);
-      h2 = Math.imul(h2 ^ ch, 1597334677);
-    }
-    h1  = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
-    h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-    h2  = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
-    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
-};
 
 function openDB() {
     let req = indexedDB.open(DB_NAME, DB_VERSION);

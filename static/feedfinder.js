@@ -38,12 +38,17 @@ async function getFeed(url) {
     return text;
 }
 
-async function isFeed(url) {
+async function isFeed(url, feed_map) {
     let text = await getFeed(url);
     if ( text == null ) {
         return false;
     }
-    return isFeedData(text);
+    let res = isFeedData(text);
+    if ( res ) {
+        let feedObj = await getFeedObject(text);
+        feed_map.set(url, feedObj);
+    }
+    return res;
 }
 
 function isFeedUrl(url) {
@@ -66,10 +71,15 @@ async function findFeeds(url, checkAll=false) {
     url = coerceUrl(url);
     const feed_text = await getFeed(url);
     if ( feed_text == null ) {
-        return [];
+        return null;
     }
+    // initialize a key-value map for a url and its feed object. 
+    // This will also act as a cache to avoid parsing a feed url.
+    let feed_map = new Map();
     if ( isFeedData(feed_text) ) {
-        return [url];
+        feedObj = await getFeedObject(feed_text);
+        feed_map.set(url, feedObj);
+        return {urls: [url], feed_map: feed_map};
     }
     const tree = new window.DOMParser().parseFromString(feed_text, "text/html");
     let links = [];
@@ -96,15 +106,19 @@ async function findFeeds(url, checkAll=false) {
             links.push(u.toString());
         }
     });
-    let urls = [];
+    let urls = new Set();
     for ( link of links ) {
-        let isAFeed = await isFeed(link);
+        // Has link been checked before
+        if ( urls.has(link) ) {
+            continue;
+        }
+        let isAFeed = await isFeed(link, feed_map);
         if ( isAFeed ) {
-            urls.push(link);
+            urls.add(link);
         }
     }
-    if ( urls.length > 0 && !checkAll ) {
-        return sortUrls(urls);
+    if ( urls.size > 0 && !checkAll ) {
+        return {urls: sortUrls(urls), feed_map: feed_map};
     }
 
     // Look for <a> tags
@@ -127,24 +141,30 @@ async function findFeeds(url, checkAll=false) {
 
     // Check the local URLs.
     for ( link of local ) {
-        let isAFeed = await isFeed(link);
+        if ( urls.has(link) ) {
+            continue;
+        }
+        let isAFeed = await isFeed(link, feed_map);
         if ( isAFeed ) {
             urls.push(link);
         }
     }
-    if ( urls.length > 0 && !checkAll ) {
-        return sortUrls(urls);
+    if ( urls.size > 0 && !checkAll ) {
+        return {urls: sortUrls(urls), feed_map: feed_map};
     }
 
     // Check the remote URLs.
     for ( link of remote ) {
-        let isAFeed = await isFeed(link);
+        if ( urls.has(link) ) {
+            continue;
+        }
+        let isAFeed = await isFeed(link, feed_map);
         if ( isAFeed ) {
             urls.push(link);
         }
     }
-    if ( urls.length > 0 && !checkAll ) {
-        return sortUrls(urls);
+    if ( urls.size > 0 && !checkAll ) {
+        return {urls: sortUrls(urls), feed_map: feed_map};
     }
 
     // Guess potential URLs.
@@ -152,12 +172,16 @@ async function findFeeds(url, checkAll=false) {
     for ( path of paths ) {
         let u = new URL(path, url);
         u = u.toString();
-        let isAFeed = await isFeed(u);
+        // Has link been checked before
+        if ( urls.has(u) ) {
+            continue;
+        }
+        let isAFeed = await isFeed(u, feed_map);
         if ( isAFeed ) {
             urls.push(u);
         }
     }
-    return sortUrls(urls);
+    return {urls: sortUrls(urls), feed_map: feed_map};
 }
 
 function urlFeedProb(url) {
@@ -177,6 +201,10 @@ function urlFeedProb(url) {
 }
 
 function sortUrls(urls) {
-    urls.sort((a, b) => urlFeedProb(b) - urlFeedProb(a));
-    return urls;
+    let url_list = [];
+    for ( item of urls ) {
+        url_list.push(item);
+    }
+    url_list.sort((a, b) => urlFeedProb(b) - urlFeedProb(a));
+    return url_list;
 }
