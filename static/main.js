@@ -1,11 +1,3 @@
-const ARTICLE_LIST_HREF = "#article-list";
-const DB_NAME = "offline-rss";
-const DB_VERSION = 1;
-const SITE_STORE_NAME = "sites";
-const ARTICLE_STORE_NAME = "articles";
-
-let db;
-
 function addEventListeners() {
     document.querySelectorAll("aside a").forEach((anchor) => {
         anchor.addEventListener("click", (evt) => {
@@ -50,15 +42,19 @@ async function showFeeds(evt) {
     const feed_list = document.querySelector(ARTICLE_LIST_HREF);
     feed_list.replaceChildren();
     feed_list.appendChild(unorderedList);
+    let store = getObjectStore(SITE_STORE_NAME, "readonly");
     for ( url of feeds.urls ) {
         let feedObj = feeds.feed_map.get(url);
         if ( feedObj == 'undefined' || feedObj == null ) {
             continue;
         }
-        html = showFeed(url, feedObj);
+        html = await showFeed(store, url, feedObj);
         unorderedList.insertAdjacentHTML('beforeend', html);
         let myAddFeed = addFeed.bind({feedObj: feedObj});
-        document.getElementById(`${feedObj.hash}`).addEventListener('click', myAddFeed);
+        let btn = document.getElementById(`${feedObj.hash}`);
+        if ( btn != null ) {
+            btn.addEventListener('click', myAddFeed);
+        }
     }
     showOneMain(ARTICLE_LIST_HREF);
 }
@@ -66,17 +62,14 @@ async function showFeeds(evt) {
 async function fetchFeedObjects(evt) {
     evt.preventDefault();
     let url = document.getElementById("feed-url").value;
-    if ( !URL.canParse(url) ) {
-        alert("Invalid url");
-        return null;
-    }
     let feeds = await findFeeds(url);
     return feeds;
 }
 
-function showFeed(url, feedObj) {
+async function showFeed(store, url, feedObj) {
     let html = "<li><div>";
-    feedObj.site_url = url;
+    feedObj.feed_url = url;
+    let dbContainsSite = await hasSite(store, url);
     if ( feedObj.title != "" ) {
         html += `<h2>${feedObj.title}</h2>`;
     }
@@ -85,7 +78,8 @@ function showFeed(url, feedObj) {
         html += `<div>${feedObj.description}</div>`;
     }
     html += "<ul>";
-    for ( i = 0; i < 3; i++ ) {
+    const min_size = Math.min(3, feedObj.articles.length);
+    for ( i = 0; i < min_size; i++ ) {
         html += "<li>";
         if ( feedObj.articles[i].title != "" ) {
             html += `<strong>${feedObj.articles[i].title}</strong>`;
@@ -93,205 +87,121 @@ function showFeed(url, feedObj) {
         html += "</li>";
     }
     html += "</ul>";
-    html += `<form><button id="${feedObj.hash}">Add Feed</button></form>`;
+    if ( dbContainsSite ) {
+        html += '<p>Added</p>';
+    } else {
+        html += `<form><button id="${feedObj.hash}">Add Feed</button></form>`;
+    }
     return html;
 }
 
-function addFeed(evt) {
-    evt.preventDefault();
-    console.log(this.feedObj);
+function generateSiteFromFeedObject(feedObj) {
+    return {
+        title: feedObj.title,
+        feed_url: feedObj.feed_url,
+        site_url: feedObj.site_url, 
+        description: feedObj.description,
+        hash: feedObj.hash,
+        etag: feedObj.etag,
+        last_modified: feedObj.last_modified,
+        next_poll: feedObj.next_poll,
+        poll_interval: feedObj.poll_interval,
+    }
 }
 
-async function parseRSS(dom) {
-    let feed = dom.querySelector("rss");
-    let title = dom.querySelector("channel>title");
-    let link = dom.querySelector("channel>link");
-    let description = dom.querySelector("channel>description");
-    let result = {title: "", feed_url: "", site_url: "", description: "", entries: []};
-    result.title = ( title != null ) ? title.innerHTML : "";
-    result.feed_url = ( link != null ) ? link.innerHTML : "";
-    result.description = ( description != null ) ? description.innerHTML : "";
-    let site = {title: result.title, feed_url: result.feed_url, site_url: result.site_url, 
-        description: result.description, hash: cyrb53(feed.innerHTML)};
+async function addFeed(evt) {
+    evt.preventDefault();
+    let site = generateSiteFromFeedObject(this.feedObj);
     let site_id = await getOrCreateSite(site);
     if ( site_id == 0 ) {
         return;
     }
-    let items = dom.querySelectorAll("item");
     let article_store = getObjectStore(ARTICLE_STORE_NAME, 'readwrite');
-    items.forEach(item => {
-        entry = {title: "", link: "", content: "", pubDate: "", hash: 0, site_id: site_id};
-        let title = item.querySelector("title");
-        let link = item.querySelector("link");
-        let description = item.querySelector("description");
-        let pubDate = item.querySelector("pubDate");
-        entry.title = ( title != null ) ? title.innerHTML : "";
-        entry.link = ( link != null ) ? link.innerHTML : "";
-        entry.content = ( description != null ) ? description.innerHTML : "";
-        entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
-        entry.hash = cyrb53(item.innerHTML);
-        result.entries.push(entry);
-        getOrCreateArticle(article_store, entry);
-    });
-    printFeed(result);
+    let end = this.feedObj.articles.length - 1;
+    /**
+     * Add articles in reverse order. Most RSS feeds starts from the newest to the oldest.
+     * We want to add from the oldest to the newest.
+     */
+    for ( let i = end; i >= 0; i-- ) {
+        this.feedObj.articles[i].site_id = site_id;
+        getOrCreateArticle(article_store, this.feedObj.articles[i]);
+    }
 }
 
-async function parseAtom(dom) {
-    let feed = dom.querySelector("feed");
-    let title = dom.querySelector("feed>title");
-    let links = dom.querySelectorAll("feed>link");
-    let result = {title: "", feed_url: "", site_url: "", description: "", entries: []};
-    result.title = ( title != null ) ? title.innerHTML : "";
-    if ( links.length == 1 ) {
-        result.feed_url = links[0].getAttribute("href");
-    } else {
-        links.forEach((link) => {
-            if ( link.getAttribute("rel") == "self" ) {
-                result.feed_url = link.getAttribute("href");
-            } else {
-                result.site_url = link.getAttribute("href");
-            }
-        })
-    }
-    let site = {title: result.title, feed_url: result.feed_url, site_url: result.site_url, 
-        description: result.description, hash: cyrb53(feed.innerHTML)};
-    let site_id = 0;
-    try {
-        site_id = await getOrCreateSite(site);
-    } catch (error) {
-        if ( error == "ConstraintError" ) {
-            console.log("You've added this site before");
-        } else {
-            console.error("Error code:", error);
-        }
+function doPolling() {
+    setInterval(pollFeeds, 60*500);
+}
+
+async function pollFeeds() {
+    const sites = await getSiteToPoll();
+    if ( sites.length == 0 ) {
         return;
     }
-    let items = dom.querySelectorAll("entry");
-    let article_store = getObjectStore(ARTICLE_STORE_NAME, 'readwrite');
-    items.forEach(item => {
-        entry = {title: "", link: "", content: "", pubDate: "", hash: 0, site_id: site_id};
-        let title = item.querySelector("title");
-        let link = item.querySelector("link");
-        let content = item.querySelector("content");
-        let pubDate = item.querySelector("published");
-        entry.title = ( title != null ) ? title.innerHTML : "";
-        entry.link = ( link != null ) ? link.getAttribute("href") : "";
-        entry.content = ( content != null ) ? content.innerHTML : "";
-        entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
-        entry.hash = cyrb53(item.innerHTML);
-        result.entries.push(entry);
-        getOrCreateArticle(article_store, entry);
+    for ( site of sites ) {
+        await pollFeed(site);
+    }
+}
+
+async function pollFeed(siteData) {
+    let etag = siteData.etag;
+    let last_modified = siteData.last_modified;
+    let url = siteData.feed_url;
+    const MAX_WAIT_TIME = 3600000; 
+    const feedResponse = await fetchMyFeed(url, etag, last_modified);
+    if ( feedResponse.status == 304 && siteData.poll_interval < MAX_WAIT_TIME ) {
+        siteData.poll_interval = Math.min(MAX_WAIT_TIME, siteData.poll_interval*2);
+    } else if ( feedResponse.status == 429 || feedResponse.status == 403 ) {
+        siteData.poll_interval = 4 * MAX_WAIT_TIME;
+    }
+
+    if ( feedResponse.text == "" ) {
+        siteData.next_poll = Date.now() + siteData.poll_interval;
+        await updateSite(siteData);
+        return;
+    }
+    let hash = cyrb53(feedResponse.text);
+    if ( hash != siteData.hash ) {
+        let feedObj = await getFeedObject(feedResponse);
+        let site = generateSiteFromFeedObject(feedObj);
+        site.id = siteData.id;
+        let updated = await updateSite(site);
+        if ( updated ) {
+            await addNewArticlesToSite(feedObj.articles, site.id);
+        }
+
+    } else {
+        siteData.etag = etag;
+        siteData.last_modified = last_modified;
+        siteData.poll_interval = 5*SECONDS_IN_MINUTES;
+        siteData.next_poll = Date.now() + siteData.poll_interval;
+        await updateSite(siteData)
+    }
+}
+
+async function fetchMyFeed(url, etag, last_modified) {
+    const myHeaders = new Headers();
+    myHeaders.append("Rss-Url", url);
+    if ( etag != null ) {
+        myHeaders.append("If-None-Match", etag);
+    }
+    if ( last_modified != null ) {
+        myHeaders.append("If-Modified-Since", last_modified);
+    }
+    const response = await fetch("/proxy", {
+        headers: myHeaders
     });
-    printFeed(result);
-}
-
-function printFeed(feed) {
-    let html = ``;
-    if ( feed.title != "" ) {
-        html += `<h2>${feed.title}</h2>`;
+    let result = {last_modified: "", etag: "", text: "", status: response.status};
+    if ( !response.ok ) {
+        return result;
     }
-
-    if ( feed.site_url != "" ) {
-        html += `<p>Visit the site link: <a href="${feed.site_url}">${feed.site_url}</a></p>`;
-    }
-    if ( feed.description != "" ) {
-        html += `<div>${feed.description}</div>`;
-    }
-    if ( feed.entries.length > 0 ) {
-        html += "<ul>";
-    }
-    feed.entries.forEach((entry) => {
-        html += "<li>";
-        if ( entry.title != "" ) {
-            html += `<h4>${entry.title}</h4>`;
-        }
-        if ( entry.link != "" ) {
-            html += `<p>Visit the article link: <a href="${entry.link}">${entry.link}</a></p>`;
-        }
-        if ( entry.content != "" ) {
-            html += `<div>${entry.content}</div>`;
-        }
-        if ( entry.pubDate != "" ) {
-            html += `<p>Published on: ${entry.pubDate}</p>`;
-        }
-        html += "</li>";
-    });
-    html += "</ul>";
-    showOneMain(ARTICLE_LIST_HREF);
-}
-
-function openDB() {
-    let req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onsuccess = (evt) => {
-        db = evt.target.result;
-    };
-    req.onerror = (evt) => {
-        console.error("Error: ", evt.target.error?.message);
-    };
-    req.onupgradeneeded = (evt) => {
-        const site_store = evt.currentTarget.result.createObjectStore(SITE_STORE_NAME, 
-            {keyPath: 'id', autoIncrement: true});
-        const article_store = evt.currentTarget.result.createObjectStore(ARTICLE_STORE_NAME, 
-            {keyPath: 'id', autoIncrement: true});
-        site_store.createIndex('feed_url', 'feed_url', {unique: true});
-        site_store.createIndex('hash', 'hash', {unique: true});
-        article_store.createIndex('site_id', 'site_id', {unique: false});
-        article_store.createIndex('hash', 'hash', {unique: true});
-    }
-}
-
-function getObjectStore(store_name, mode) {
-    let tx = db.transaction(store_name, mode);
-    return tx.objectStore(store_name);
-}
-
-async function getOrCreateSite(site) {
-    return new Promise((resolve, reject) => {
-        let store = getObjectStore(SITE_STORE_NAME, 'readwrite');
-        let hashIndex = store.index('hash');
-        let id = 0;
-        let req = hashIndex.get(site.hash);
-        req.onsuccess = (evt) => {
-            if ( typeof evt.target.result == 'undefined' ) {
-                let addReq = store.add(site);
-                addReq.onsuccess = (addEvt) => {
-                    resolve(addEvt.target.result);
-                };
-                addReq.onerror = (addEvt) => {
-                    reject(addEvt.target.error.name);
-                }
-
-            } else {
-                id = evt.target.result.id;
-                resolve(id);
-            }
-        };
-        req.onerror = (evt) => {
-            reject(evt.target.error.name);
-        };
-    });
-}
-
-function getOrCreateArticle(store, article) {
-    let getReq = store.index('hash');
-    getReq.get(article.hash).onsuccess = (getEvt) => {
-        if ( typeof getEvt.target.result == 'undefined' ) {
-            addArticle(store, article);
-            return;
-        }
-    }
-}
-
-function addArticle(storeObject, article) {
-    let req = storeObject.add(article);
-    req.onsuccess = (evt) => {
-        console.log("Article added");
-    };
-    req.onerror = (evt) => {
-        console.error(evt.target.error);
-    };
+    let text = await response.text();
+    result.last_modified = response.headers.get("Last-Modified");
+    result.etag = response.headers.get("ETag");
+    result.text = text;
+    return result
 }
 
 openDB();
 showUrlMain();
 addEventListeners();
+doPolling();

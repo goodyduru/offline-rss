@@ -1,3 +1,5 @@
+const SECONDS_IN_MINUTES = 60000;
+
 /**
  * Hash function by bryc
  * https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
@@ -19,14 +21,26 @@ const cyrb53 = function(str, seed = 0) {
 /**
  * This parses an atom or rss page text into a top-level object containing just the title, url, hash and dom tree object.
  */
-async function getFeedObject(text) {
+async function getFeedObject(response) {
     let feedObj = null;
+    let text = response.text;
     if ( text.includes("<rss") ) {
         feedObj = await parseAsRSS(text);
     } else if ( text.includes("<feed")) {
         feedObj = await parseAsAtom(text);
     }
+    if ( feedObj != null ) {
+        feedObj.etag = response.etag;
+        feedObj.last_modified = response.last_modified;
+        feedObj.poll_interval = (5*SECONDS_IN_MINUTES);
+        feedObj.next_poll = Date.now() + (5*SECONDS_IN_MINUTES);
+    }
     return feedObj;
+}
+
+function getEmptyFeedObject() {
+    return {title: "", feed_url: "", site_url: "", description: "", hash: "", 
+        etag: null, last_modified: null, poll_interval: 0, next_poll: 0, articles: []}
 }
 
 async function parseAsRSS(text) {
@@ -34,10 +48,11 @@ async function parseAsRSS(text) {
     let title = tree.querySelector("channel>title");
     let link = tree.querySelector("channel>link");
     let description = tree.querySelector("channel>description");
-    let result = {title: "", feed_url: "", site_url: "", description: "", hash: cyrb53(text), articles: []};
+    let result = getEmptyFeedObject();
     result.title = ( title != null ) ? title.innerHTML : "";
     result.feed_url = ( link != null ) ? link.innerHTML : "";
     result.description = ( description != null ) ? description.innerHTML : "";
+    result.hash = cyrb53(text);
     if ( result.feed_url == "" && link != null ) {
         result.feed_url = link.getAttribute("href");
     }
@@ -53,7 +68,8 @@ async function parseAsAtom(text) {
     const tree = await new window.DOMParser().parseFromString(text, "text/xml");
     let title = tree.querySelector("feed>title");
     let links = tree.querySelectorAll("feed>link");
-    let result = {title: "", feed_url: "", site_url: "", description: "", hash: cyrb53(text), articles: []};
+    let result = getEmptyFeedObject();
+    result.hash = cyrb53(text);
     result.title = ( title != null ) ? title.innerHTML : "";
     if ( links.length == 1 ) {
         result.feed_url = links[0].getAttribute("href");
@@ -105,6 +121,14 @@ function parseAtomEntities(tree) {
         entry.content = ( content != null ) ? content.innerHTML : "";
         entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         entry.hash = cyrb53(item.innerHTML);
+        if ( entry.pubDate == "" ) {
+            pubDate = item.querySelector("updated");
+            entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
+        }
+        if ( entry.content == "" ) {
+            content = item.querySelector("summary");
+            entry.content = ( content != null ) ? content.innerHTML : "";
+        }
         result.push(entry);
     });
     return result;

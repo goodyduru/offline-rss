@@ -24,7 +24,7 @@ function isFeedData(text) {
     return ( data.includes("<rss") || data.includes("<feed") );
 }
 
-async function getFeed(url) {
+async function getNewFeed(url) {
     const response = await fetch("/proxy", {
         headers: {
             "Rss-Url": url,
@@ -34,21 +34,23 @@ async function getFeed(url) {
     if (!response.ok) {
         return null;
     }
+    let last_modified = response.headers.get("Last-Modified");
+    let etag = response.headers.get("ETag");
     let text = await response.text();
-    return text;
+    return {last_modified: last_modified, etag: etag, text: text};
 }
 
 async function isFeed(url, feed_map) {
-    let text = await getFeed(url);
-    if ( text == null ) {
+    let response = await getNewFeed(url);
+    if ( response == null || response.text == null ) {
         return false;
     }
-    let res = isFeedData(text);
-    if ( res ) {
-        let feedObj = await getFeedObject(text);
+    let isOne = isFeedData(response.text);
+    if ( isOne ) {
+        let feedObj = await getFeedObject(response);
         feed_map.set(url, feedObj);
     }
-    return res;
+    return isOne;
 }
 
 function isFeedUrl(url) {
@@ -69,7 +71,8 @@ function isFeedLikeUrl(url) {
 
 async function findFeeds(url, checkAll=false) {
     url = coerceUrl(url);
-    const feed_text = await getFeed(url);
+    const feed_response = await getNewFeed(url);
+    const feed_text = feed_response.text;
     if ( feed_text == null ) {
         return null;
     }
@@ -77,7 +80,7 @@ async function findFeeds(url, checkAll=false) {
     // This will also act as a cache to avoid parsing a feed url.
     let feed_map = new Map();
     if ( isFeedData(feed_text) ) {
-        feedObj = await getFeedObject(feed_text);
+        feedObj = await getFeedObject(feed_response);
         feed_map.set(url, feedObj);
         return {urls: [url], feed_map: feed_map};
     }
