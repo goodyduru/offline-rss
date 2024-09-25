@@ -16,22 +16,23 @@ function openDB() {
         console.error("Error: ", evt.target.error?.message);
     };
     req.onupgradeneeded = (evt) => {
-        const site_store = evt.currentTarget.result.createObjectStore(SITE_STORE_NAME, 
+        const siteStore = evt.currentTarget.result.createObjectStore(SITE_STORE_NAME, 
             {keyPath: 'id', autoIncrement: true});
-        const article_store = evt.currentTarget.result.createObjectStore(ARTICLE_STORE_NAME, 
+        const articleStore = evt.currentTarget.result.createObjectStore(ARTICLE_STORE_NAME, 
             {keyPath: 'id', autoIncrement: true});
-        site_store.createIndex('feed_url', 'feed_url', {unique: true});
-        site_store.createIndex('hash', 'hash', {unique: true});
-        site_store.createIndex('next_poll', 'next_poll', {unique: false});
-        article_store.createIndex('site_id', 'site_id', {unique: false});
-        article_store.createIndex('hash', 'hash', {unique: true});
-        article_store.createIndex('link', 'link', {unique: false});
+        siteStore.createIndex('feedUrl', 'feedUrl', {unique: true});
+        siteStore.createIndex('hash', 'hash', {unique: true});
+        siteStore.createIndex('nextPoll', 'nextPoll', {unique: false});
+        articleStore.createIndex('siteId', 'siteId', {unique: false});
+        articleStore.createIndex('hash', 'hash', {unique: true});
+        articleStore.createIndex('link', 'link', {unique: false});
+        articleStore.createIndex('isRead', 'isRead', {unique: false});
     }
 }
 
-function getObjectStore(store_name, mode) {
-    let tx = db.transaction(store_name, mode);
-    return tx.objectStore(store_name);
+function getObjectStore(storeName, mode) {
+    let tx = db.transaction(storeName, mode);
+    return tx.objectStore(storeName);
 }
 
 async function getOrCreateSite(site) {
@@ -61,14 +62,23 @@ async function getOrCreateSite(site) {
     });
 }
 
-function getOrCreateArticle(store, article) {
-    let getReq = store.index('hash');
-    getReq.get(article.hash).onsuccess = (getEvt) => {
-        if ( typeof getEvt.target.result == 'undefined' ) {
-            addArticle(store, article);
-            return;
+async function getOrCreateArticle(store, article) {
+    return new Promise((resolve, reject) => {
+        let getReq = store.index('hash');
+        const req = getReq.get(article.hash);
+        req.onsuccess = (getEvt) => {
+            if ( typeof getEvt.target.result == 'undefined' ) {
+                addArticle(store, article);
+                resolve(1);
+            } else {
+                resolve(0);
+            }
+        };
+        req.onerror = (evt) => {
+            console.log(evt.target.error);
+            reject(0);
         }
-    }
+    });
 }
 
 function addArticle(storeObject, article) {
@@ -78,10 +88,10 @@ function addArticle(storeObject, article) {
     };
 }
 
-async function hasSite(store, feed_url) {
+async function hasSite(store, feedUrl) {
     return new Promise((resolve, reject) => {
-        let feedIndex = store.index('feed_url');
-        let req = feedIndex.get(feed_url);
+        let feedIndex = store.index('feedUrl');
+        let req = feedIndex.get(feedUrl);
         req.onsuccess = (evt) => {
             if ( typeof evt.target.result == 'undefined' ) {
                 resolve(false);
@@ -110,26 +120,36 @@ async function updateSite(site) {
     })
 }
 
-async function addNewArticlesToSite(articles, site_id) {
-    let metadata = await getCurrentArticlesMetaData(articles.length, site_id);
+async function addNewArticlesToSite(articles, siteId) {
+    let metadata = await getCurrentArticlesMetaData(articles.length, siteId);
     if ( metadata == null ) {
-        return;
+        return 0;
     }
-    let end = articles.length - 1;
-    let store = getObjectStore(ARTICLE_STORE_NAME, "readwrite");
-    for ( let i = end; i >= 0; i-- ) {
-        let article = articles[i];
-        if ( metadata.hashes.has(article.hash) ) {
-            continue;
+    let numArticlesAdded = await updateArticles(articles, metadata, siteId);
+    return numArticlesAdded;
+}
+
+async function updateArticles(articles, metadata, siteId) {
+    return new Promise((resolve, reject) => {
+        let end = articles.length - 1;
+        let store = getObjectStore(ARTICLE_STORE_NAME, "readwrite");
+        let result = 0;
+        for ( let i = end; i >= 0; i-- ) {
+            let article = articles[i];
+            if ( metadata.hashes.has(article.hash) ) {
+                continue;
+            }
+            article.siteId = siteId;
+            let id = metadata.links.get(article.link);
+            if (id != undefined ) {
+                updateArticle(store, article, id);
+            } else {
+                addArticle(store, article);
+            }
+            result++;
         }
-        article.site_id = site_id;
-        let id = metadata.links.get(article.link);
-        if (id != undefined ) {
-            updateArticle(store, article, id);
-        } else {
-            addArticle(store, article);
-        }
-    }
+        resolve(result);
+    });
 }
 
 function updateArticle(store, article, id) {
@@ -139,13 +159,13 @@ function updateArticle(store, article, id) {
     }
 }
 
-async function getCurrentArticlesMetaData(length, site_id) {
+async function getCurrentArticlesMetaData(length, siteId) {
     return new Promise((resolve, reject) => {
         let links = new Map();
         let hashes = new Set();
         const store = getObjectStore(ARTICLE_STORE_NAME, "readonly");
-        const siteIDRange = IDBKeyRange.only(site_id);
-        const index = store.index("site_id");
+        const siteIDRange = IDBKeyRange.only(siteId);
+        const index = store.index("siteId");
         let req = index.openCursor(siteIDRange, "prev");
         let count = 0;
         req.onsuccess = (event) => {
@@ -175,7 +195,7 @@ async function getSiteToPoll() {
         const store = getObjectStore(SITE_STORE_NAME, "readonly");
         const currentTime = Date.now();
         const timeRange = IDBKeyRange.upperBound(currentTime);
-        const index = store.index("next_poll");
+        const index = store.index("nextPoll");
         const req = index.openCursor(timeRange);
         let result = [];
         req.onsuccess = (event) => {

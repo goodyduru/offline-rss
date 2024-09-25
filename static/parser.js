@@ -31,16 +31,16 @@ async function getFeedObject(response) {
     }
     if ( feedObj != null ) {
         feedObj.etag = response.etag;
-        feedObj.last_modified = response.last_modified;
-        feedObj.poll_interval = (5*SECONDS_IN_MINUTES);
-        feedObj.next_poll = Date.now() + (5*SECONDS_IN_MINUTES);
+        feedObj.lastModified = response.lastModified;
+        feedObj.pollInterval = (5*SECONDS_IN_MINUTES);
+        feedObj.nextPoll = Date.now() + (5*SECONDS_IN_MINUTES);
     }
     return feedObj;
 }
 
 function getEmptyFeedObject() {
-    return {title: "", feed_url: "", site_url: "", description: "", hash: "", 
-        etag: null, last_modified: null, poll_interval: 0, next_poll: 0, articles: []}
+    return {title: "", feedUrl: "", siteUrl: "", description: "", hash: "", 
+        etag: null, lastModified: null, pollInterval: 0, nextPoll: 0, articles: []}
 }
 
 async function parseAsRSS(text) {
@@ -50,15 +50,15 @@ async function parseAsRSS(text) {
     let description = tree.querySelector("channel>description");
     let result = getEmptyFeedObject();
     result.title = ( title != null ) ? title.innerHTML : "";
-    result.feed_url = ( link != null ) ? link.innerHTML : "";
+    result.feedUrl = ( link != null ) ? link.innerHTML : "";
     result.description = ( description != null ) ? description.innerHTML : "";
     result.hash = cyrb53(text);
-    if ( result.feed_url == "" && link != null ) {
-        result.feed_url = link.getAttribute("href");
+    if ( result.feedUrl == "" && link != null ) {
+        result.feedUrl = link.getAttribute("href");
     }
-    if ( result.feed_url != "" ) {
-        let u = new URL(result.feed_url);
-        result.site_url = u.origin;
+    if ( result.feedUrl != "" ) {
+        let u = new URL(result.feedUrl);
+        result.siteUrl = u.origin;
     }
     result.articles = parseRSSEntities(tree);
     return result;
@@ -72,15 +72,15 @@ async function parseAsAtom(text) {
     result.hash = cyrb53(text);
     result.title = ( title != null ) ? title.innerHTML : "";
     if ( links.length == 1 ) {
-        result.feed_url = links[0].getAttribute("href");
-        let u = new URL(result.feed_url);
-        result.site_url = u.origin;
+        result.feedUrl = links[0].getAttribute("href");
+        let u = new URL(result.feedUrl);
+        result.siteUrl = u.origin;
     } else {
         links.forEach((link) => {
             if ( link.getAttribute("rel") == "self" ) {
-                result.feed_url = link.getAttribute("href");
-            } else if ( result.site_url == "" ) {
-                result.site_url = link.getAttribute("href");
+                result.feedUrl = link.getAttribute("href");
+            } else if ( result.siteUrl == "" ) {
+                result.siteUrl = link.getAttribute("href");
             }
         })
     }
@@ -92,14 +92,14 @@ function parseRSSEntities(tree) {
     let result = [];
     let items = tree.querySelectorAll("item");
     items.forEach(item => {
-        entry = {title: "", link: "", content: "", pubDate: "", hash: 0, site_id: 0};
+        entry = {title: "", link: "", content: "", pubDate: "", hash: 0, siteId: 0, isRead: false};
         let title = item.querySelector("title");
         let link = item.querySelector("link");
         let description = item.querySelector("description");
         let pubDate = item.querySelector("pubDate");
-        entry.title = ( title != null ) ? title.innerHTML : "";
+        entry.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "") : "";
         entry.link = ( link != null ) ? link.innerHTML : "";
-        entry.content = ( description != null ) ? description.innerHTML : "";
+        entry.content = ( description != null ) ? description.innerHTML.replace("<![CDATA[", "").replace("]]>", "") : "";
         entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         entry.hash = cyrb53(item.innerHTML);
         result.push(entry);
@@ -111,14 +111,14 @@ function parseAtomEntities(tree) {
     let result = [];
     let items = tree.querySelectorAll("entry");
     items.forEach(item => {
-        entry = {title: "", link: "", content: "", pubDate: "", hash: 0, site_id: 0};
+        entry = {title: "", link: "", content: "", pubDate: "", hash: 0, siteId: 0, isRead: false};
         let title = item.querySelector("title");
         let link = item.querySelector("link");
         let content = item.querySelector("content");
         let pubDate = item.querySelector("published");
-        entry.title = ( title != null ) ? title.innerHTML : "";
+        entry.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "") : "";
         entry.link = ( link != null ) ? link.getAttribute("href") : "";
-        entry.content = ( content != null ) ? content.innerHTML : "";
+        entry.content = ( content != null ) ? content.innerHTML.replace("<![CDATA[", "").replace("]]>", "") : "";
         entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         entry.hash = cyrb53(item.innerHTML);
         if ( entry.pubDate == "" ) {
@@ -127,7 +127,7 @@ function parseAtomEntities(tree) {
         }
         if ( entry.content == "" ) {
             content = item.querySelector("summary");
-            entry.content = ( content != null ) ? content.innerHTML : "";
+            entry.content = ( content != null ) ? content.innerHTML.replace("<![CDATA[", "").replace("]]>", "") : "";
         }
         result.push(entry);
     });
