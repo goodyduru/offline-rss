@@ -133,7 +133,12 @@ async function addFeed(evt) {
     updateSite(site);
 }
 
-openDB();
-showUrlMain();
-addEventListeners();
-doPolling();
+async function init() {
+    await openDB();
+    showUrlMain();
+    addEventListeners();
+    doPolling();
+    initView();
+}
+
+init();

@@ -69,3 +69,7 @@ main {
     grid-column-start: 2;
     grid-column-end: auto;
 }
+
+.unread {
+    font-weight: bold;
+}

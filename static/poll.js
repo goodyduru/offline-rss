@@ -4,7 +4,7 @@ function doPolling() {
 }
 
 async function pollFeeds() {
-    const sites = await getSiteToPoll();
+    const sites = await getSitesToPoll();
     let numArticlesAdded = 0;
     if ( sites.length == 0 ) {
         return;
