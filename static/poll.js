@@ -14,7 +14,7 @@ async function pollFeeds() {
         numArticlesAdded += result;
     }
     if ( numArticlesAdded > 0 ) {
-        notifyUser(numArticlesAdded);
+        sidebarSites();
     }
 }
 

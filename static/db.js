@@ -242,7 +242,7 @@ async function getUnreadArticles() {
     return new Promise((resolve, reject) => {
         const store = getObjectStore(ARTICLE_STORE_NAME, "readonly");
         const index = store.index("isRead");
-        const req = index.openCursor(IDBKeyRange.only(false), "prev");
+        const req = index.openCursor(IDBKeyRange.only(0), "prev");
         let articles = [];
         let count = 0;
         req.onsuccess = (event) => {

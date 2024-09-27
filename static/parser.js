@@ -92,7 +92,7 @@ function parseRSSEntities(tree) {
     let result = [];
     let items = tree.querySelectorAll("item");
     items.forEach(item => {
-        entry = {title: "", link: "", content: "", pubDate: "", hash: 0, siteId: 0, isRead: false};
+        entry = {title: "", link: "", content: "", pubDate: "", hash: 0, siteId: 0, isRead: 0};
         let title = item.querySelector("title");
         let link = item.querySelector("link");
         let description = item.querySelector("description");
@@ -111,7 +111,7 @@ function parseAtomEntities(tree) {
     let result = [];
     let items = tree.querySelectorAll("entry");
     items.forEach(item => {
-        entry = {title: "", link: "", content: "", pubDate: "", hash: 0, siteId: 0, isRead: false};
+        entry = {title: "", link: "", content: "", pubDate: "", hash: 0, siteId: 0, isRead: 0};
         let title = item.querySelector("title");
         let link = item.querySelector("link");
         let content = item.querySelector("content");
