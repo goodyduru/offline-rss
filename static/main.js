@@ -6,6 +6,11 @@ function addEventListeners() {
     });
 
     document.getElementById("add-feed-btn").addEventListener("click", (evt) => showFeeds(evt));
+    document.getElementById("modal-forms").addEventListener("click", (evt) => {
+        if ( evt.target.id == "modal-forms" ) {
+            evt.target.style.display = "none";
+        }
+    })
 }
 
 async function init() {

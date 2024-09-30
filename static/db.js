@@ -325,3 +325,38 @@ async function getSite(id) {
         };
     });
 }
+
+async function deleteSiteArticles(siteId) {
+    return new Promise((resolve, reject) => {
+        const store = getObjectStore(ARTICLE_STORE_NAME, "readwrite");
+        const index = store.index("siteId");
+        req = index.openKeyCursor(IDBKeyRange.only(siteId));
+        req.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if ( cursor ) {
+                store.delete(cursor.primaryKey);
+                cursor.continue();
+            } else {
+                resolve();
+            }
+        };
+        req.onerror = (event) => {
+            console.error(event.target.error);
+            reject();
+        };
+    });
+}
+
+async function deleteSite(siteId) {
+    return new Promise((resolve, reject) => {
+        const store = getObjectStore(SITE_STORE_NAME, "readwrite");
+        req = store.delete(siteId);
+        req.onsuccess = () => {
+            resolve();
+        };
+        req.onerror = (event) => {
+            console.error(event.target.error);
+            reject();
+        };
+    });
+}

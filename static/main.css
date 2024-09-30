@@ -74,7 +74,7 @@ main {
     font-weight: bold;
 }
 
-#loader {
+.loader {
     position: fixed;
     top: 0;
     left: 0;
@@ -87,7 +87,7 @@ main {
     align-items: center;
     color: white;
 }
-#loader p {
+#network-loader p {
     width: fit-content;
     font-weight: bold;
     font-family: sans-serif;
@@ -96,7 +96,12 @@ main {
     background: linear-gradient(currentColor 0 0) 0 100%/0% 3px no-repeat;
     animation: l2 2s linear infinite;
 }
-#loader p:before {
+#network-loader p:before {
     content:"Loading Feeds..."
 }
 @keyframes l2 {to{background-size: 100% 3px}}
+
+.form-wrapper {
+    background-color: white;
+    color: black;
+}

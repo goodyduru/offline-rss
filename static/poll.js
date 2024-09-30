@@ -5,16 +5,14 @@ function doPolling() {
 
 async function pollFeeds() {
     const sites = await getSitesToPoll();
-    let numArticlesAdded = 0;
     if ( sites.length == 0 ) {
         return;
     }
     for ( site of sites ) {
         let result = await pollFeed(site);
-        numArticlesAdded += result;
-    }
-    if ( numArticlesAdded > 0 ) {
-        sidebarSites();
+        if ( result > 0 ) {
+            updateSiteSidebar(site);
+        }
     }
 }
 
@@ -46,6 +44,7 @@ async function pollFeed(siteData) {
         if ( updated ) {
             numArticles = await addNewArticlesToSite(feedObj.articles, site.id);
             site.numUnreadArticles += numArticles;
+            siteData.numUnreadArticles = site.numUnreadArticles;
             await updateSite(site);
         }
 

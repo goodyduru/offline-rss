@@ -18,7 +18,6 @@
             <aside>
                 <ul>
                     <li><a href="/">Home</a></li>
-                    <li><a href="#article-list">Article List</a></li>
                     <li><a href="#feed-list">All Feeds</a></li>
                     <li><a href="#add-feed">Add Feed</a></li>
                 </ul>
@@ -41,6 +40,29 @@
                 <section id="feed-options"></section>
             </main>
         </div>
-        <div id="loader"><p></p></div>
+        <div id="network-loader" class="loader"><p></p></div>
+        <div id="modal-forms" class="loader">
+            <div id="rename-form" class="form-wrapper d-none">
+                <form>
+                    <fieldset>
+                        <label for="feed-title">Title:</label>
+                        <input type="text" name="feed-title" id="feed-title" placeholder="Feed Title" required>
+                    </fieldset>
+                    <div>
+                        <span>RSS URL:</span>
+                        <span></span>
+                    </div>
+                    <button type="submit">Rename</button>
+                    <button type="button">Cancel</button>
+                </form>
+            </div>
+            <div id="delete-form" class="form-wrapper d-none">
+                <form>
+                    <div><p>Are you sure you want to delete...</p></div>
+                    <button type="submit">Delete</button>
+                    <button type="button">Cancel</button>
+                </form>
+            </div>
+        </div>
     </body>
 </html>

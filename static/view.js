@@ -1,5 +1,6 @@
 const ARTICLE_LIST_HREF = "#article-list";
 const SINGLE_ARTICLE_HREF = "#single-article"
+const FEED_LIST_ID = "feed-list"
 
 function htmlToNode(html) {
     const template = document.createElement('template');
@@ -34,6 +35,9 @@ function showOneMain(href) {
         }
         content.classList.add("d-none");
     });
+    if ( id == FEED_LIST_ID ) {
+        listOfFeeds();
+    }
 }
 
 function showUrlMain() {
@@ -81,22 +85,31 @@ function addSiteToSidebar(parent, site) {
         }
     }
     const hash = cyrb53(site.feedUrl);
-    const html = `<li><a href="/feed/${site.hash}">${site.title}<span id="feed-${hash}">${getCountContent(site.numUnreadArticles)}</span></a></li>`;
+    const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}<span>${getCountContent(site.numUnreadArticles)}</span></a></li>`;
     const listItem = htmlToNode(html);
     let v = viewSiteFeeds.bind({site: site, allArticles: false});
     listItem.firstChild.addEventListener('click', v);
     parent.appendChild(listItem);
 }
 
+function updateSiteSidebar(site) {
+    const hash = cyrb53(site.feedUrl);
+    const content = `${site.title}<span>${getCountContent(site.numUnreadArticles)}</span>`;
+    const anchor = document.getElementById(`feed-${hash}`);
+    anchor.replaceChildren();
+    anchor.innerHTML = content;
+}
+
+function removeSiteFromSidebar(site) {
+    const hash = cyrb53(site.feedUrl);
+    const anchor = document.getElementById(`feed-${hash}`);
+    const list = anchor.parentNode.parentNode;
+    list.removeChild(anchor.parentNode);
+}
+
 async function viewSiteFeeds(evt) {
     evt.preventDefault();
-    let target;
-    if ( evt.target.tagName == "SPAN" ) {
-        target = evt.target.parentNode;
-    } else {
-        target = evt.target;
-    }
-    window.history.pushState(this.site, this.site.title, target.href);
+    window.history.pushState(this.site, this.site.title, evt.currentTarget.href);
     const parent = document.querySelector(ARTICLE_LIST_HREF);
     let articles;
     if ( this.allArticles ) {
@@ -157,8 +170,7 @@ async function viewArticle(evt) {
         article.isRead = 1;
         updateArticle(null, article);
         updateSite(site);
-        const hash = cyrb53(site.feedUrl);
-        document.getElementById(`feed-${hash}`).textContent = getCountContent(site.numUnreadArticles);
+        updateSiteSidebar(site);
     }
     const parent = document.querySelector(SINGLE_ARTICLE_HREF);
     const articleLink = `<p><a href="${article.link}" target="_blank">Visit site</a></p>`
@@ -207,14 +219,13 @@ async function toggleRead(evt) {
     updateSite(site);
     evt.target.parentNode.firstChild.classList.toggle("unread");
     evt.target.innerHTML = to;
-    const hash = cyrb53(site.feedUrl);
-    document.getElementById(`feed-${hash}`).textContent = getCountContent(site.numUnreadArticles)
+    updateSiteSidebar(site);
 }
 
 async function showFeeds(evt) {
     evt.preventDefault();
     const feedUrl = document.getElementById("feed-url").value;
-    const loader = document.getElementById("loader");
+    const loader = document.getElementById("network-loader");
     loader.style.display = "flex";
     const feeds = await findFeeds(feedUrl);
     if ( feeds == null || feeds.urls.length == 0 ) {
@@ -298,6 +309,98 @@ async function addFeed(evt) {
     await updateSite(site);
     btn.textContent = "Added";
     addSiteToSidebar(null, site);
+}
+
+async function listOfFeeds() {
+    const parent = document.getElementById(FEED_LIST_ID);
+    const sites = await getAllSites();
+    parent.replaceChildren();
+    if ( sites.length == 0 ) {
+        const message = "<p>You've not subscribed to any feed.</p>";
+        parent.insertAdjacentHTML("beforeend", message);
+        return;
+    }
+    const table = htmlToNode("<table><thead><tr><th scope='col' colspan='1'>Feed Name</th></tr></thead><tbody></tbody></table>");
+    const body = table.lastChild;
+    for ( site of sites ) {
+        let html = `<tr><td>${site.title}</td><td><a href="#" class="btn">Rename</a></td><td><a href="#" class="btn btn-danger">Delete</a></td></tr>`;
+        let e = editSite.bind({site: site});
+        let d = deleteSiteAndArticles.bind({site: site});
+        let row = htmlToNode(html);
+        row.children[1].firstChild.addEventListener('click', e);
+        row.lastChild.firstChild.addEventListener('click', d);
+        body.append(row);
+    }
+    parent.append(table);
+}
+
+async function editSite(evt) {
+    evt.preventDefault();
+    const form = document.getElementById("rename-form");
+    const table_row = evt.target.parentNode.parentNode;
+    const parent = form.parentNode;
+    const site = this.site;
+    const controller = new AbortController();
+    const signal = controller.signal;
+    const edit = function(event) {
+        event.preventDefault();
+        site.title = form.querySelector('input').value;
+        updateSite(site);
+        updateSiteSidebar(site);
+        table_row.firstChild.textContent = site.title;
+        form.classList.add("d-none");
+        parent.style.display = "none";
+        controller.abort();
+    };
+    const cancel = function(event) {
+        event.preventDefault();
+        form.classList.add("d-none");
+        parent.style.display = "none";
+        controller.abort()
+    };
+    form.querySelector('input').value = this.site.title;
+    form.querySelectorAll('span')[1].textContent = this.site.feedUrl;
+    form.classList.remove("d-none");
+    const btns = form.querySelectorAll("button");
+    btns[0].addEventListener('click', edit, {signal});
+    btns[1].addEventListener('click', cancel, {once: true});
+    parent.style.display = "flex";
+}
+
+async function deleteSiteAndArticles(evt) {
+    evt.preventDefault();
+    const table_row = evt.target.parentNode.parentNode;
+    const form = document.getElementById("delete-form");
+    const parent = form.parentNode;
+    let textView = form.querySelector('p');
+    let previousStatement = textView.textContent;
+    const site = this.site;
+    const controller = new AbortController();
+    const signal = controller.signal;
+    const deleteAll = async function(event) {
+        event.preventDefault();
+        await deleteSiteArticles(site.id);
+        await deleteSite(site.id);
+        removeSiteFromSidebar(site);
+        table_row.parentNode.removeChild(table_row);
+        textView.textContent = previousStatement;
+        form.classList.add("d-none");
+        parent.style.display = "none";
+        controller.abort();
+    };
+    const cancel = function(event) {
+        event.preventDefault();
+        textView.textContent = previousStatement;
+        form.classList.add("d-none");
+        parent.style.display = "none";
+        controller.abort()
+    };
+    textView.textContent = `Are you sure you want to delete ${site.title} and all its articles?`;
+    form.classList.remove("d-none");
+    const btns = form.querySelectorAll("button");
+    btns[0].addEventListener('click', deleteAll, {signal});
+    btns[1].addEventListener('click', cancel, {once: true});
+    parent.style.display = "flex";
 }
 
 function initView() {
