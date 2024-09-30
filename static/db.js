@@ -30,6 +30,7 @@ function openDB() {
             articleStore.createIndex('hash', 'hash', {unique: true});
             articleStore.createIndex('link', 'link', {unique: false});
             articleStore.createIndex('isRead', 'isRead', {unique: false});
+            articleStore.createIndex('siteUnread', ['siteId', 'isRead'], {unique: false})
         };
     });
 }
@@ -262,14 +263,20 @@ async function getUnreadArticles() {
     });
 }
 
-async function getSiteArticles(site_id, offset) {
+async function getSiteArticles(siteId, isRead, offset) {
     return new Promise((resolve, reject) => {
         const store = getObjectStore(ARTICLE_STORE_NAME, "readonly");
-        const index = store.index("siteId");
-        const req = index.openCursor(IDBKeyRange.only(site_id), "prev");
+        let index, req;
+        if ( isRead !== undefined && isRead != null  ) {
+            index = store.index("siteUnread");
+            req = index.openCursor(IDBKeyRange.only([siteId, isRead]), "prev");
+        } else {
+            index = store.index("siteId");
+            req = index.openCursor(IDBKeyRange.only(siteId), "prev");
+        }
         let articles = [];
         let count = 0;
-        offset = ( arguments.length == 1 ) ? 0 : offset;
+        offset = ( offset !== undefined ) ? offset : 0;
         const length = PER_PAGE + offset; 
         req.onsuccess = (event) => {
             const cursor = event.target.result;

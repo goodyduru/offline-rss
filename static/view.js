@@ -7,6 +7,16 @@ function htmlToNode(html) {
     return template.content.firstChild;
 }
 
+function getCountContent(unreadArticles) {
+    let count;
+    if ( unreadArticles > 0 ) {
+        count = `(${unreadArticles})`;
+    } else {
+        count = "";
+    }
+    return count;
+}
+
 async function viewUnread() {
     const parent = document.querySelector(ARTICLE_LIST_HREF);
     const articles = await getUnreadArticles();
@@ -36,9 +46,9 @@ async function sidebarSites() {
     }
     for ( site of sites ) {
         const hash = cyrb53(site.feedUrl);
-        const html = `<li><a href="/feed/${site.hash}">${site.title}<span id="feed-${hash}">(${site.numUnreadArticles})</span></a></li>`;
+        const html = `<li><a href="/feed/${site.hash}">${site.title}<span id="feed-${hash}">${getCountContent(site.numUnreadArticles)}</span></a></li>`;
         const listItem = htmlToNode(html);
-        let v = viewSiteFeeds.bind({site: site});
+        let v = viewSiteFeeds.bind({site: site, allArticles: false});
         listItem.firstChild.addEventListener('click', v);
         parent.appendChild(listItem);
     }
@@ -54,15 +64,28 @@ async function viewSiteFeeds(evt) {
     }
     window.history.pushState(this.site, this.site.title, target.href);
     const parent = document.querySelector(ARTICLE_LIST_HREF);
-    const articles = await getSiteArticles(this.site.id);
+    let articles;
+    if ( this.allArticles ) {
+        articles = await getSiteArticles(this.site.id);
+    } else {
+        articles = await getSiteArticles(this.site.id, 0);
+    }
 
     parent.replaceChildren();
     if ( articles.length == 0 ) {
-        const message = "<p>There are no articles in this feed.</p>";
-        parent.insertAdjacentHTML("beforeend", message);
-        return;
+        if ( this.allArticles ) {
+            const message = "<p>There are no unread articles in this feed.</p>";
+            parent.insertAdjacentHTML("beforeend", message);
+        } else {
+            const divNode = htmlToNode(`<div><p>There are no unread articles in this feed.</p><p><a class="btn" href="#">View Read Articles</a></p></div>`);
+            const btn = divNode.lastChild.firstChild;
+            let v = viewSiteFeeds.bind({site: site, allArticles: true});
+            btn.addEventListener('click', v);
+            parent.append(divNode);
+        }
+    } else {
+        parent.appendChild(listArticles(articles));
     }
-    parent.appendChild(listArticles(articles));
     if ( parent.classList.contains("d-none") ) {
         showOneMain(ARTICLE_LIST_HREF);
     } else {
@@ -101,7 +124,7 @@ async function viewArticle(evt) {
         updateArticle(null, article);
         updateSite(site);
         const hash = cyrb53(site.feedUrl);
-        document.getElementById(`feed-${hash}`).textContent = `(${site.numUnreadArticles})`;
+        document.getElementById(`feed-${hash}`).textContent = getCountContent(site.numUnreadArticles);
     }
     const parent = document.querySelector(SINGLE_ARTICLE_HREF);
     const articleLink = `<p><a href="${article.link}" target="_blank">Visit site</a></p>`
@@ -151,7 +174,7 @@ async function toggleRead(evt) {
     evt.target.parentNode.firstChild.classList.toggle("unread");
     evt.target.innerHTML = to;
     const hash = cyrb53(site.feedUrl);
-    document.getElementById(`feed-${hash}`).textContent = `(${site.numUnreadArticles})`;
+    document.getElementById(`feed-${hash}`).textContent = getCountContent(site.numUnreadArticles)
 }
 
 function initView() {
