@@ -40,6 +40,21 @@ function getObjectStore(storeName, mode) {
     return tx.objectStore(storeName);
 }
 
+function generateSiteFromFeedObject(feedObj) {
+    return {
+        title: feedObj.title,
+        feedUrl: feedObj.feedUrl,
+        siteUrl: feedObj.siteUrl, 
+        description: feedObj.description,
+        hash: feedObj.hash,
+        etag: feedObj.etag,
+        lastModified: feedObj.lastModified,
+        nextPoll: feedObj.nextPoll,
+        pollInterval: feedObj.pollInterval,
+        numUnreadArticles: 0,
+    }
+}
+
 async function getOrCreateSite(site) {
     return new Promise((resolve, reject) => {
         let store = getObjectStore(SITE_STORE_NAME, 'readwrite');

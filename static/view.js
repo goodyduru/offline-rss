@@ -17,6 +17,30 @@ function getCountContent(unreadArticles) {
     return count;
 }
 
+
+function showOneMain(href) {
+    const index = href.indexOf("#");
+    if ( index == -1 ) {
+        return;
+    } 
+    const id = href.substring(index+1);
+    if ( id == "" ) {
+        return;
+    }
+    document.querySelectorAll("main").forEach((content) => {
+        if (content.getAttribute("id") == id) {
+            content.classList.remove("d-none");
+            return;
+        }
+        content.classList.add("d-none");
+    });
+}
+
+function showUrlMain() {
+    const loc = document.location;
+    showOneMain(loc.hash);
+}
+
 async function viewUnread() {
     const parent = document.querySelector(ARTICLE_LIST_HREF);
     const articles = await getUnreadArticles();
@@ -45,13 +69,23 @@ async function sidebarSites() {
         return;
     }
     for ( site of sites ) {
-        const hash = cyrb53(site.feedUrl);
-        const html = `<li><a href="/feed/${site.hash}">${site.title}<span id="feed-${hash}">${getCountContent(site.numUnreadArticles)}</span></a></li>`;
-        const listItem = htmlToNode(html);
-        let v = viewSiteFeeds.bind({site: site, allArticles: false});
-        listItem.firstChild.addEventListener('click', v);
-        parent.appendChild(listItem);
+        addSiteToSidebar(parent, site);
     }
+}
+
+function addSiteToSidebar(parent, site) {
+    if ( parent == null ) {
+        parent = document.getElementById("sidebar-feeds");
+        if ( parent.firstChild && parent.firstChild.tagName == "P" ) {
+            parent.replaceChildren();
+        }
+    }
+    const hash = cyrb53(site.feedUrl);
+    const html = `<li><a href="/feed/${site.hash}">${site.title}<span id="feed-${hash}">${getCountContent(site.numUnreadArticles)}</span></a></li>`;
+    const listItem = htmlToNode(html);
+    let v = viewSiteFeeds.bind({site: site, allArticles: false});
+    listItem.firstChild.addEventListener('click', v);
+    parent.appendChild(listItem);
 }
 
 async function viewSiteFeeds(evt) {
@@ -175,6 +209,95 @@ async function toggleRead(evt) {
     evt.target.innerHTML = to;
     const hash = cyrb53(site.feedUrl);
     document.getElementById(`feed-${hash}`).textContent = getCountContent(site.numUnreadArticles)
+}
+
+async function showFeeds(evt) {
+    evt.preventDefault();
+    const feedUrl = document.getElementById("feed-url").value;
+    const loader = document.getElementById("loader");
+    loader.style.display = "flex";
+    const feeds = await findFeeds(feedUrl);
+    if ( feeds == null || feeds.urls.length == 0 ) {
+        loader.style.display = "none";
+        alert("No feed in the given website.");
+        return;
+    }
+    let unorderedList = document.createElement("ul");
+    const feedList = document.getElementById("feed-options");
+    feedList.replaceChildren();
+    feedList.appendChild(unorderedList);
+    let store = getObjectStore(SITE_STORE_NAME, "readonly");
+    for ( url of feeds.urls ) {
+        let feedObj = feeds.feedMap.get(url);
+        if ( feedObj == 'undefined' || feedObj == null ) {
+            continue;
+        }
+        html = await showFeed(store, url, feedObj);
+        unorderedList.insertAdjacentHTML('beforeend', html);
+        let myAddFeed = addFeed.bind({feedObj: feedObj});
+        let btn = document.getElementById(`${feedObj.hash}`);
+        if ( btn != null ) {
+            btn.addEventListener('click', myAddFeed);
+        }
+    }
+    loader.style.display = "none";
+}
+
+async function showFeed(store, url, feedObj) {
+    let html = "<li><div>";
+    feedObj.feedUrl = url;
+    let dbContainsSite = await hasSite(store, url);
+    if ( feedObj.title != "" ) {
+        html += `<h2>${feedObj.title}</h2>`;
+    }
+    html += `<p>Visit the site link: <a href="${feedObj.siteUrl}">${feedObj.siteUrl}</a></p>`;
+    if ( feedObj.description != "" ) {
+        html += `<div>${feedObj.description}</div>`;
+    }
+    html += "<ul>";
+    const minSize = Math.min(3, feedObj.articles.length);
+    for ( i = 0; i < minSize; i++ ) {
+        html += "<li>";
+        if ( feedObj.articles[i].title != "" ) {
+            html += `<strong>${feedObj.articles[i].title}</strong>`;
+        }
+        html += "</li>";
+    }
+    html += "</ul>";
+    if ( dbContainsSite ) {
+        html += '<p>Added</p>';
+    } else {
+        html += `<form><button id="${feedObj.hash}">Add Feed</button></form>`;
+    }
+    return html;
+}
+
+async function addFeed(evt) {
+    evt.preventDefault();
+    const btn = evt.target;
+    btn.textContent = "Adding...";
+    btn.setAttribute('disabled', true);
+    let site = generateSiteFromFeedObject(this.feedObj);
+    let siteId = await getOrCreateSite(site);
+    if ( siteId == 0 ) {
+        return;
+    }
+    let articleStore = getObjectStore(ARTICLE_STORE_NAME, 'readwrite');
+    let end = this.feedObj.articles.length - 1;
+    /**
+     * Add articles in reverse order. Most RSS feeds starts from the newest to the oldest.
+     * We want to add from the oldest to the newest.
+     */
+    let numArticles = 0;
+    for ( let i = end; i >= 0; i-- ) {
+        this.feedObj.articles[i].siteId = siteId;
+        numArticles += await getOrCreateArticle(articleStore, this.feedObj.articles[i]);
+    }
+    site.numUnreadArticles = numArticles;
+    site.id = siteId;
+    await updateSite(site);
+    btn.textContent = "Added";
+    addSiteToSidebar(null, site);
 }
 
 function initView() {
