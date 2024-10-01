@@ -60,14 +60,13 @@ async function pollFeed(siteData) {
 
 async function fetchMyFeed(url, etag, lastModified) {
     const myHeaders = new Headers();
-    myHeaders.append("Rss-Url", url);
     if ( etag != null ) {
         myHeaders.append("If-None-Match", etag);
     }
     if ( lastModified != null ) {
         myHeaders.append("If-Modified-Since", lastModified);
     }
-    const response = await fetch("/proxy", {
+    const response = await fetch(`/proxy?u=${encodeURIComponent(url)}`, {
         headers: myHeaders
     });
     let result = {lastModified: "", etag: "", text: "", status: response.status};

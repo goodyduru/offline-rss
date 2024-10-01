@@ -8,18 +8,18 @@ import (
 )
 
 func requestRSS(w http.ResponseWriter, r *http.Request) {
-	site, p := r.Header["Rss-Url"]
-	if !p {
+	queryUrl := r.URL.Query().Get("u")
+	if queryUrl == "" {
 		http.Error(w, "bad URL", http.StatusBadRequest)
 		return
 	}
 
-	if _, err := url.ParseRequestURI(site[0]); err != nil {
+	if _, err := url.ParseRequestURI(queryUrl); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	req, err := http.NewRequest("GET", site[0], nil)
+	req, err := http.NewRequest("GET", queryUrl, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -25,11 +25,7 @@ function isFeedData(text) {
 }
 
 async function getNewFeed(url) {
-    const response = await fetch("/proxy", {
-        headers: {
-            "Rss-Url": url,
-        }
-    });
+    const response = await fetch(`/proxy?u=${encodeURIComponent(url)}`);
 
     if (!response.ok) {
         return null;
