@@ -1,7 +1,11 @@
 function addEventListeners() {
     document.querySelectorAll("aside a").forEach((anchor) => {
         anchor.addEventListener("click", (evt) => {
-            showOneMain(evt.target.href);
+            evt.preventDefault();
+            if ( window.location.href != evt.target.href ) {
+                window.history.pushState(null, "", evt.target.href);
+                router();
+            }
         });
     });
 
@@ -15,10 +19,10 @@ function addEventListeners() {
 
 async function init() {
     await openDB();
-    showUrlMain();
     addEventListeners();
     doPolling();
-    initView();
+    await sidebarSites();
+    initRouter();
 }
 
 init();

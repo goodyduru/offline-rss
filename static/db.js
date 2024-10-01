@@ -182,6 +182,26 @@ function updateArticle(store, article, id) {
     };
 }
 
+async function getArticle(id, isHash) {
+    return new Promise((resolve, reject) => {
+        const store = getObjectStore(ARTICLE_STORE_NAME, "readonly");
+        let req;
+        if ( isHash === undefined || !isHash ) {
+            req = store.get(id);
+        } else {
+            const index = store.index('hash');
+            req = index.get(id);
+        }
+        req.onsuccess = (event) => {
+            resolve(event.target.result);
+        };
+        req.onerror = (event) => {
+            console.error(event.target.error);
+            reject(null);
+        };
+    });
+}
+
 async function getCurrentArticlesMetaData(length, siteId) {
     return new Promise((resolve, reject) => {
         let links = new Map();
@@ -312,10 +332,16 @@ async function getSiteArticles(siteId, isRead, offset) {
     });
 }
 
-async function getSite(id) {
+async function getSite(id, isHash) {
     return new Promise((resolve, reject) => {
         const store = getObjectStore(SITE_STORE_NAME, "readonly");
-        const req = store.get(id)
+        let req;
+        if ( isHash === undefined || !isHash ) {
+            req = store.get(id);
+        } else {
+            const index = store.index('hash');
+            req = index.get(id);
+        }
         req.onsuccess = (event) => {
             resolve(event.target.result);
         };

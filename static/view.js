@@ -1,5 +1,5 @@
-const ARTICLE_LIST_HREF = "#article-list";
-const SINGLE_ARTICLE_HREF = "#single-article"
+const ARTICLE_LIST_ID = "article-list";
+const SINGLE_ARTICLE_ID = "single-article"
 const FEED_LIST_ID = "feed-list"
 
 function htmlToNode(html) {
@@ -18,16 +18,7 @@ function getCountContent(unreadArticles) {
     return count;
 }
 
-
-function showOneMain(href) {
-    const index = href.indexOf("#");
-    if ( index == -1 ) {
-        return;
-    } 
-    const id = href.substring(index+1);
-    if ( id == "" ) {
-        return;
-    }
+function showOneMain(id) {
     document.querySelectorAll("main").forEach((content) => {
         if (content.getAttribute("id") == id) {
             content.classList.remove("d-none");
@@ -35,18 +26,10 @@ function showOneMain(href) {
         }
         content.classList.add("d-none");
     });
-    if ( id == FEED_LIST_ID ) {
-        listOfFeeds();
-    }
-}
-
-function showUrlMain() {
-    const loc = document.location;
-    showOneMain(loc.hash);
 }
 
 async function viewUnread() {
-    const parent = document.querySelector(ARTICLE_LIST_HREF);
+    const parent = document.getElementById(ARTICLE_LIST_ID);
     const articles = await getUnreadArticles();
 
     parent.replaceChildren();
@@ -57,7 +40,7 @@ async function viewUnread() {
     }
     parent.appendChild(listArticles(articles));
     if ( parent.classList.contains("d-none") ) {
-        showOneMain(ARTICLE_LIST_HREF);
+        showOneMain(ARTICLE_LIST_ID);
     } else {
         window.scroll(0, 0);
     }
@@ -87,7 +70,7 @@ function addSiteToSidebar(parent, site) {
     const hash = cyrb53(site.feedUrl);
     const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}<span>${getCountContent(site.numUnreadArticles)}</span></a></li>`;
     const listItem = htmlToNode(html);
-    let v = viewSiteFeeds.bind({site: site, allArticles: false});
+    let v = viewSiteFeeds.bind({site: site, onlyUnread: true});
     listItem.firstChild.addEventListener('click', v);
     parent.appendChild(listItem);
 }
@@ -110,34 +93,61 @@ function removeSiteFromSidebar(site) {
     }
 }
 
-async function viewSiteFeeds(evt) {
+function viewSiteFeeds(evt) {
     evt.preventDefault();
-    window.history.pushState(this.site, this.site.title, evt.currentTarget.href);
-    const parent = document.querySelector(ARTICLE_LIST_HREF);
-    let articles;
-    if ( this.allArticles ) {
-        articles = await getSiteArticles(this.site.id);
+    if ( window.location.href != evt.currentTarget.href ) {
+        window.history.pushState(null, "", evt.currentTarget.href);
+    }
+    emitFeedArticles(this.site, this.onlyUnread);
+}
+
+async function viewSiteByHash(siteHash) {
+    let site = null;
+    let hash = parseInt(siteHash);
+    if ( !isNaN(hash) ) {
+        site = await getSite(hash, true);
+    }
+    if ( site == null ) {
+        const parent = document.getElementById(ARTICLE_LIST_ID);
+        parent.replaceChildren();
+        const message = "<p>This feed does not exist.</p>";
+        parent.insertAdjacentHTML("beforeend", message);
+        if ( parent.classList.contains("d-none") ) {
+            showOneMain(ARTICLE_LIST_ID);
+        } else {
+            window.scroll(0, 0);
+        }
     } else {
-        articles = await getSiteArticles(this.site.id, 0);
+        emitFeedArticles(site, true);
+    }
+}
+
+async function emitFeedArticles(site, onlyUnread) {
+    const parent = document.getElementById(ARTICLE_LIST_ID);
+    let articles;
+    if ( onlyUnread ) {
+        articles = await getSiteArticles(site.id, 0);
+    } else {
+        articles = await getSiteArticles(site.id);
     }
 
     parent.replaceChildren();
     if ( articles.length == 0 ) {
-        if ( this.allArticles ) {
-            const message = "<p>There are no unread articles in this feed.</p>";
-            parent.insertAdjacentHTML("beforeend", message);
-        } else {
+        if ( onlyUnread ) {
             const divNode = htmlToNode(`<div><p>There are no unread articles in this feed.</p><p><a class="btn" href="#">View Read Articles</a></p></div>`);
             const btn = divNode.lastChild.firstChild;
-            let v = viewSiteFeeds.bind({site: site, allArticles: true});
+            let v = viewSiteFeeds.bind({site: site, onlyUnread: false});
             btn.addEventListener('click', v);
             parent.append(divNode);
+        } else {
+            const message = "<p>There are no unread articles in this feed.</p>";
+            parent.insertAdjacentHTML("beforeend", message);
         }
     } else {
         parent.appendChild(listArticles(articles));
     }
     if ( parent.classList.contains("d-none") ) {
-        showOneMain(ARTICLE_LIST_HREF);
+        showOneMain(ARTICLE_LIST_ID);
     } else {
         window.scroll(0, 0);
     }
@@ -160,10 +170,37 @@ function listArticles(articles) {
     return list;
 }
 
-async function viewArticle(evt) {
+async function viewArticleByHash(articleHash) {
+    let article = null;
+    let hash = parseInt(articleHash);
+    if ( !isNaN(hash) ) {
+        article = await getArticle(hash, true);
+    }
+    if ( article == null ) {
+        const parent = document.getElementById(SINGLE_ARTICLE_ID);
+        parent.replaceChildren();
+        const message = "<p>This article does not exist.</p>";
+        parent.insertAdjacentHTML("beforeend", message);
+        if ( parent.classList.contains("d-none") ) {
+            showOneMain(SINGLE_ARTICLE_ID);
+        } else {
+            window.scroll(0, 0);
+        }
+    } else {
+        emitArticle([article], 0);
+    }
+}
+
+function viewArticle(evt) {
     evt.preventDefault();
-    const article = this.articles[this.index];
-    window.history.pushState("Wow", article.title, evt.target.href);
+    if ( window.location.href != evt.currentTarget.href ) {
+        window.history.pushState(null, "", evt.currentTarget.href);
+    }
+    emitArticle(this.articles, this.index);
+}
+
+async function emitArticle(articles, index) {
+    const article = articles[index];
     if ( article.isRead == 0 ) {
         const site = await getSite(article.siteId);
         if ( site == null ) {
@@ -175,28 +212,28 @@ async function viewArticle(evt) {
         updateSite(site);
         updateSiteSidebar(site);
     }
-    const parent = document.querySelector(SINGLE_ARTICLE_HREF);
+    const parent = document.getElementById(SINGLE_ARTICLE_ID);
     const articleLink = `<p><a href="${article.link}" target="_blank">Visit site</a></p>`
     const html = `<article><h2>${article.title}</h2>${articleLink}<section>${article.content}</section></article>`;
     parent.replaceChildren();
     parent.insertAdjacentHTML("beforeend", html);
     const nav = document.createElement("section");
-    if ( this.index > 0 ) {
-        let prev = htmlToNode(`<a href="/article/${this.articles[this.index-1].hash}">Prev</a>`);
-        let v = viewArticle.bind({articles: this.articles, index: this.index-1});
+    if ( index > 0 ) {
+        let prev = htmlToNode(`<a href="/article/${articles[index-1].hash}">Prev</a>`);
+        let v = viewArticle.bind({articles: articles, index: index-1});
         prev.addEventListener('click', v);
         nav.appendChild(prev);
     }
 
-    if ( this.index < (this.articles.length - 1) ) {
-        let next = htmlToNode(`<a href="/article/${this.articles[this.index+1].hash}">Next</a>`);
-        let v = viewArticle.bind({articles: this.articles, index: this.index+1});
+    if ( index < (articles.length - 1) ) {
+        let next = htmlToNode(`<a href="/article/${articles[index+1].hash}">Next</a>`);
+        let v = viewArticle.bind({articles: articles, index: index+1});
         next.addEventListener('click', v);
         nav.appendChild(next);
     }
     parent.appendChild(nav);
     if ( parent.classList.contains("d-none") ) {
-        showOneMain(SINGLE_ARTICLE_HREF);
+        showOneMain(SINGLE_ARTICLE_ID);
     } else {
         window.scroll(0, 0);
     }
@@ -335,6 +372,7 @@ async function listOfFeeds() {
         body.append(row);
     }
     parent.append(table);
+    showOneMain(FEED_LIST_ID);
 }
 
 async function editSite(evt) {
@@ -414,9 +452,3 @@ function removeRow(tbody, tr) {
         feedListSection.insertAdjacentHTML("beforeend", "<p>You've not subscribed to any feed.</p>");
     }
 }
-
-function initView() {
-    sidebarSites();
-    viewUnread();
-}
-

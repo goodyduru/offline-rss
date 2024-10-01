@@ -47,8 +47,17 @@ func requestRSS(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, resp.Body)
 }
 
+func loadIndex(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./static/index.html")
+}
+
 func main() {
-	http.Handle("/", http.FileServer(http.Dir("./static")))
-	http.HandleFunc("/proxy", requestRSS)
-	log.Fatal(http.ListenAndServe(":5000", nil))
+	mux := http.NewServeMux()
+	mux.Handle("GET /", http.FileServer(http.Dir("./static")))
+	mux.HandleFunc("GET /feed-list", loadIndex)
+	mux.HandleFunc("GET /add-feed", loadIndex)
+	mux.HandleFunc("GET /feed/{id}", loadIndex)
+	mux.HandleFunc("GET /article/{id}", loadIndex)
+	mux.HandleFunc("GET /proxy", requestRSS)
+	log.Fatal(http.ListenAndServe(":5000", mux))
 }
