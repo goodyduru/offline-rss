@@ -97,9 +97,9 @@ function parseRSSEntities(tree) {
         let link = item.querySelector("link");
         let description = item.querySelector("description");
         let pubDate = item.querySelector("pubDate");
-        entry.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "") : "";
+        entry.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "").trim() : "";
         entry.link = ( link != null ) ? link.innerHTML : "";
-        entry.content = ( description != null ) ? description.innerHTML.replace("<![CDATA[", "").replace("]]>", "") : "";
+        entry.content = convertImagesSrc(description, entry.link);
         entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         entry.hash = cyrb53(item.innerHTML);
         result.push(entry);
@@ -116,9 +116,9 @@ function parseAtomEntities(tree) {
         let link = item.querySelector("link");
         let content = item.querySelector("content");
         let pubDate = item.querySelector("published");
-        entry.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "") : "";
+        entry.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "").trim() : "";
         entry.link = ( link != null ) ? link.getAttribute("href") : "";
-        entry.content = ( content != null ) ? content.innerHTML.replace("<![CDATA[", "").replace("]]>", "") : "";
+        entry.content = convertImagesSrc(content, entry.link);
         entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         entry.hash = cyrb53(item.innerHTML);
         if ( entry.pubDate == "" ) {
@@ -127,9 +127,41 @@ function parseAtomEntities(tree) {
         }
         if ( entry.content == "" ) {
             content = item.querySelector("summary");
-            entry.content = ( content != null ) ? content.innerHTML.replace("<![CDATA[", "").replace("]]>", "") : "";
+            entry.content = convertImagesSrc(content, entry.link);
         }
         result.push(entry);
     });
     return result;
+}
+
+function convertImagesSrc(articleContent, articleUrl) {
+    if ( articleContent == null ) {
+        return "";
+    }
+    const html = articleContent.innerHTML.replace("<![CDATA[", "").replace("]]>", "");
+    const tree = new window.DOMParser().parseFromString(html, "text/html");
+    let images = tree.querySelectorAll("img");
+    for ( img of images ) {
+        let url = new URL(img.getAttribute('src'), articleUrl);
+        img.setAttribute("src", `/proxy?u=${encodeURIComponent(url.toString())}`);
+        let srcSets = img.getAttribute('srcset');
+        if ( srcSets == null ) {
+            continue;
+        }
+        let srcs = srcSets.split(",");
+        for ( let i = 0; i < srcs.length; i++ ) {
+            let t = srcs[i].trim().split(" ");
+            url = new URL(t[0], articleUrl);
+            t[0] = `/proxy?u=${encodeURIComponent(url.toString())}`;
+            srcs[i] = t.join(" ");
+        }
+        img.setAttribute('srcset', srcs.join(", "));
+    }
+
+    let sources = tree.querySelectorAll("source");
+    for ( source of sources ) {
+        let url = new URL(source.getAttribute('srcset'), articleUrl);
+        source.setAttribute("srcset", `/proxy?u=${encodeURIComponent(url.toString())}`);
+    }
+    return tree.body.innerHTML
 }

@@ -105,6 +105,9 @@ function removeSiteFromSidebar(site) {
     const anchor = document.getElementById(`feed-${hash}`);
     const list = anchor.parentNode.parentNode;
     list.removeChild(anchor.parentNode);
+    if ( list.childNodes.length == 0 ) {
+        list.insertAdjacentHTML("beforeend", "<p>You've not subscribed to any feed.</p>");
+    }
 }
 
 async function viewSiteFeeds(evt) {
@@ -382,7 +385,7 @@ async function deleteSiteAndArticles(evt) {
         await deleteSiteArticles(site.id);
         await deleteSite(site.id);
         removeSiteFromSidebar(site);
-        table_row.parentNode.removeChild(table_row);
+        removeRow(table_row.parentNode, table_row);
         textView.textContent = previousStatement;
         form.classList.add("d-none");
         parent.style.display = "none";
@@ -401,6 +404,15 @@ async function deleteSiteAndArticles(evt) {
     btns[0].addEventListener('click', deleteAll, {signal});
     btns[1].addEventListener('click', cancel, {once: true});
     parent.style.display = "flex";
+}
+
+function removeRow(tbody, tr) {
+    tbody.removeChild(tr);
+    if ( tbody.childNodes.length == 0 ) {
+        let feedListSection = tbody.parentNode.parentNode;
+        feedListSection.replaceChildren();
+        feedListSection.insertAdjacentHTML("beforeend", "<p>You've not subscribed to any feed.</p>");
+    }
 }
 
 function initView() {
