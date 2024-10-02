@@ -14,8 +14,8 @@ function template(name, templateFunction) {
 }
 
 function setupRoutes() {
-    template('home', function() {
-        viewUnread();
+    template('home', function(historyState) {
+        viewUnread(historyState);
     });
 
     template('add-feed', function() {
@@ -27,12 +27,12 @@ function setupRoutes() {
         listOfFeeds();
     });
 
-    template('feed', function(hash) {
-        viewSiteByHash(hash);
+    template('feed', function(hash, historyState) {
+        viewSiteByHash(hash, historyState);
     });
 
-    template('article', function(hash) {
-        viewArticleByHash(hash);
+    template('article', function(hash, historyState) {
+        viewArticleByRouter(hash, historyState);
     })
 
     route('', 'home');
@@ -44,7 +44,7 @@ function setupRoutes() {
 
 function setupHistory() {
     window.onpopstate = (event) => {
-        router();
+        router(event.state);
     }
 }
 
@@ -56,15 +56,15 @@ function resolveRouter(route) {
     }
 }
 
-function router() {
+function router(historyState) {
     let url = window.location.pathname || '/';
     let urls = url.split('/');
     if ( urls.length == 2 || urls[2] == '' ) {
         let route = resolveRouter(urls[1]);
-        route();
+        route(historyState);
     } else if ( urls.length > 2 ) {
         let route = resolveRouter(urls[1]);
-        route(urls[2]);
+        route(urls[2], historyState);
     }
 }
 

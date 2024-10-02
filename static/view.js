@@ -28,10 +28,17 @@ function showOneMain(id) {
     });
 }
 
-async function viewUnread() {
+async function viewUnread(historyState) {
     const parent = document.getElementById(ARTICLE_LIST_ID);
-    const articles = await getUnreadArticles();
-
+    document.title = "Offline RSS Reader"
+    let articles;
+    if ( historyState == undefined || historyState == null ) {
+        articles = await getUnreadArticles();
+        const idRanges = createArticleIdRanges(articles);
+        window.history.pushState({idRanges: idRanges}, "", "/");
+    } else {
+        articles = await getArticles(historyState.idRanges);
+    }
     parent.replaceChildren();
     if ( articles.length == 0 ) {
         const message = "<p>There are no articles in this feed.</p>";
@@ -93,15 +100,25 @@ function removeSiteFromSidebar(site) {
     }
 }
 
-function viewSiteFeeds(evt) {
+async function viewSiteFeeds(evt) {
     evt.preventDefault();
-    if ( window.location.href != evt.currentTarget.href ) {
-        window.history.pushState(null, "", evt.currentTarget.href);
+    let href = evt.currentTarget.href;
+    let articles;
+    if ( this.onlyUnread ) {
+        articles = await getSiteArticles(this.site.id, 0);
+    } else {
+        articles = await getSiteArticles(this.site.id);
     }
-    emitFeedArticles(this.site, this.onlyUnread);
+    const idRanges = createArticleIdRanges(articles);
+    if ( window.location.href != href ) {
+        window.history.pushState({idRanges: idRanges}, "", href);
+    } else {
+        window.history.replaceState({idRanges: idRanges}, "", href);
+    }
+    emitFeedArticles(this.site, articles, this.onlyUnread);
 }
 
-async function viewSiteByHash(siteHash) {
+async function viewSiteByHash(siteHash, historyState) {
     let site = null;
     let hash = parseInt(siteHash);
     if ( !isNaN(hash) ) {
@@ -118,23 +135,24 @@ async function viewSiteByHash(siteHash) {
             window.scroll(0, 0);
         }
     } else {
-        emitFeedArticles(site, true);
+        let articles;
+        if ( historyState === null || historyState === undefined ) {
+            articles = await getSiteArticles(this.site.id, 0);
+        } else {
+            articles = await getArticles(historyState.idRanges);
+        }
+        emitFeedArticles(site, articles, true);
     }
 }
 
-async function emitFeedArticles(site, onlyUnread) {
+async function emitFeedArticles(site, articles, onlyUnread) {
     const parent = document.getElementById(ARTICLE_LIST_ID);
-    let articles;
-    if ( onlyUnread ) {
-        articles = await getSiteArticles(site.id, 0);
-    } else {
-        articles = await getSiteArticles(site.id);
-    }
+    document.title = site.title;
 
     parent.replaceChildren();
     if ( articles.length == 0 ) {
         if ( onlyUnread ) {
-            const divNode = htmlToNode(`<div><p>There are no unread articles in this feed.</p><p><a class="btn" href="#">View Read Articles</a></p></div>`);
+            const divNode = htmlToNode(`<div><p>There are no unread articles in this feed.</p><p><a class="btn" href="/feed/${site.hash}">View Read Articles</a></p></div>`);
             const btn = divNode.lastChild.firstChild;
             let v = viewSiteFeeds.bind({site: site, onlyUnread: false});
             btn.addEventListener('click', v);
@@ -153,15 +171,34 @@ async function emitFeedArticles(site, onlyUnread) {
     }
 }
 
+function createArticleIdRanges(articles) {
+    const articleIds = articles.map((article) => article.id);
+    let start = articleIds[articleIds.length - 1];
+    let end = start;
+    let result = [];
+    for ( i = articleIds.length - 2; i >= 0; i-- ) {
+        if ( articleIds[i]-end == 1 ) {
+            end = articleIds[i];
+        } else {
+            result.push(end, start);
+            start = articleIds[i];
+            end = start;
+        }
+    }
+    result.push(end, start);
+    return result.reverse();
+}
+
 function listArticles(articles) {
     const list = document.createElement("ul");
+    const idRanges = createArticleIdRanges(articles);
     for ( let i = 0; i < articles.length; i++ ) {
         let article = articles[i]
         const anchorClass = ( article.isRead == 1 ) ? "" : "unread";
         const toggle = ( article.isRead == 1 ) ? "Mark as unread" : "Mark as read";
         const html = `<li><a href="/article/${article.hash}" class="${anchorClass}">${article.title}</a><a href="#">${toggle}</a></li>`;
         const listItem = htmlToNode(html);
-        let v = viewArticle.bind({articles: articles, index: i});
+        let v = viewArticle.bind({articles: articles, index: i, idRanges: idRanges});
         let t = toggleRead.bind({article: article});
         listItem.firstChild.addEventListener('click', v);
         listItem.lastChild.addEventListener('click', t);
@@ -170,37 +207,55 @@ function listArticles(articles) {
     return list;
 }
 
-async function viewArticleByHash(articleHash) {
-    let article = null;
+async function viewArticleByRouter(articleHash, historyState) {
     let hash = parseInt(articleHash);
-    if ( !isNaN(hash) ) {
-        article = await getArticle(hash, true);
+    if ( isNaN(hash) ) {
+        noArticle();
+        return;
     }
-    if ( article == null ) {
-        const parent = document.getElementById(SINGLE_ARTICLE_ID);
-        parent.replaceChildren();
-        const message = "<p>This article does not exist.</p>";
-        parent.insertAdjacentHTML("beforeend", message);
-        if ( parent.classList.contains("d-none") ) {
-            showOneMain(SINGLE_ARTICLE_ID);
+    if ( historyState == null ) {
+        let article = await getArticle(hash, true);
+        if ( article == null ) {
+            noArticle();
         } else {
-            window.scroll(0, 0);
+            emitArticle([article], 0);
         }
     } else {
-        emitArticle([article], 0);
+        let articles = await getArticles(historyState.idRanges);
+        let hashes = articles.map((article) => article.hash);
+        let index = hashes.indexOf(hash);
+        if ( articles.length == 0 || index == -1 ) {
+            noArticle();
+            return;
+        } else {
+            emitArticle(articles, index, historyState.idRanges);
+        }
+    }
+}
+
+function noArticle() {
+    const parent = document.getElementById(SINGLE_ARTICLE_ID);
+    parent.replaceChildren();
+    const message = "<p>This article does not exist.</p>";
+    parent.insertAdjacentHTML("beforeend", message);
+    if ( parent.classList.contains("d-none") ) {
+        showOneMain(SINGLE_ARTICLE_ID);
+    } else {
+        window.scroll(0, 0);
     }
 }
 
 function viewArticle(evt) {
     evt.preventDefault();
     if ( window.location.href != evt.currentTarget.href ) {
-        window.history.pushState(null, "", evt.currentTarget.href);
+        window.history.pushState({index: this.index, idRanges: this.idRanges}, "", evt.currentTarget.href);
     }
-    emitArticle(this.articles, this.index);
+    emitArticle(this.articles, this.index, this.idRanges);
 }
 
-async function emitArticle(articles, index) {
+async function emitArticle(articles, index, idRanges) {
     const article = articles[index];
+    document.title = article.title;
     if ( article.isRead == 0 ) {
         const site = await getSite(article.siteId);
         if ( site == null ) {
@@ -220,14 +275,14 @@ async function emitArticle(articles, index) {
     const nav = document.createElement("section");
     if ( index > 0 ) {
         let prev = htmlToNode(`<a href="/article/${articles[index-1].hash}">Prev</a>`);
-        let v = viewArticle.bind({articles: articles, index: index-1});
+        let v = viewArticle.bind({articles: articles, index: index-1, idRanges: idRanges});
         prev.addEventListener('click', v);
         nav.appendChild(prev);
     }
 
     if ( index < (articles.length - 1) ) {
         let next = htmlToNode(`<a href="/article/${articles[index+1].hash}">Next</a>`);
-        let v = viewArticle.bind({articles: articles, index: index+1});
+        let v = viewArticle.bind({articles: articles, index: index+1, idRanges: idRanges});
         next.addEventListener('click', v);
         nav.appendChild(next);
     }

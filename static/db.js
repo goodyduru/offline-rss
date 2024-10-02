@@ -95,7 +95,7 @@ async function getOrCreateArticle(store, article) {
             }
         };
         req.onerror = (evt) => {
-            console.log(evt.target.error);
+            console.error(evt.target.error);
             reject(0);
         }
     });
@@ -229,51 +229,6 @@ async function getCurrentArticlesMetaData(length, siteId) {
     })
 }
 
-async function getSitesToPoll() {
-    return new Promise((resolve, reject) => {
-        const store = getObjectStore(SITE_STORE_NAME, "readonly");
-        const currentTime = Date.now();
-        const timeRange = IDBKeyRange.upperBound(currentTime);
-        const index = store.index("nextPoll");
-        const req = index.openCursor(timeRange);
-        let result = [];
-        req.onsuccess = (event) => {
-            const cursor = event.target.result;
-            if ( cursor ) {
-                result.push(cursor.value);
-                cursor.continue();
-            } else {
-                resolve(result);
-            }
-        };
-        req.onerror = (event) => {
-            console.error(event.target.error);
-            reject(result);
-        };
-    })
-}
-
-async function getAllSites() {
-    return new Promise((resolve, reject) => {
-        const store = getObjectStore(SITE_STORE_NAME, "readonly");
-        const req = store.openCursor();
-        let sites = [];
-        req.onsuccess = (event) => {
-            const cursor = event.target.result;
-            if ( cursor ) {
-                sites.push(cursor.value);
-                cursor.continue();
-            } else {
-                resolve(sites);
-            }
-        };
-        req.onerror = (event) => {
-            console.error(event.target.error);
-            reject(sites);
-        };
-    });
-}
-
 async function getUnreadArticles() {
     return new Promise((resolve, reject) => {
         const store = getObjectStore(ARTICLE_STORE_NAME, "readonly");
@@ -332,6 +287,37 @@ async function getSiteArticles(siteId, isRead, offset) {
     });
 }
 
+async function getArticles(idRanges) {
+    const store = getObjectStore(ARTICLE_STORE_NAME, "readonly");
+    const result = [];
+    for ( let i = 0; i < idRanges.length; i += 2 ) {
+        let a = await getArticlesInRange(store, idRanges[i], idRanges[i+1]);
+        result.push(...a);
+    }
+    return result;
+}
+
+async function getArticlesInRange(store, start, end) {
+    return new Promise((resolve, reject) => {
+        const result = [];
+        let range;
+        if ( start == end ) {
+            range = IDBKeyRange.only(start);
+        } else {
+            range = IDBKeyRange.bound(start, end);
+        }
+        store.openCursor(range, "prev").onsuccess = (event) => {
+            const cursor = event.target.result;
+            if ( cursor ) {
+                result.push(cursor.value);
+                cursor.continue();
+            } else {
+                resolve(result);
+            }
+        }
+    });
+}
+
 async function getSite(id, isHash) {
     return new Promise((resolve, reject) => {
         const store = getObjectStore(SITE_STORE_NAME, "readonly");
@@ -348,6 +334,51 @@ async function getSite(id, isHash) {
         req.onerror = (event) => {
             console.error(event.target.error);
             reject(null);
+        };
+    });
+}
+
+async function getSitesToPoll() {
+    return new Promise((resolve, reject) => {
+        const store = getObjectStore(SITE_STORE_NAME, "readonly");
+        const currentTime = Date.now();
+        const timeRange = IDBKeyRange.upperBound(currentTime);
+        const index = store.index("nextPoll");
+        const req = index.openCursor(timeRange);
+        let result = [];
+        req.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if ( cursor ) {
+                result.push(cursor.value);
+                cursor.continue();
+            } else {
+                resolve(result);
+            }
+        };
+        req.onerror = (event) => {
+            console.error(event.target.error);
+            reject(result);
+        };
+    })
+}
+
+async function getAllSites() {
+    return new Promise((resolve, reject) => {
+        const store = getObjectStore(SITE_STORE_NAME, "readonly");
+        const req = store.openCursor();
+        let sites = [];
+        req.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if ( cursor ) {
+                sites.push(cursor.value);
+                cursor.continue();
+            } else {
+                resolve(sites);
+            }
+        };
+        req.onerror = (event) => {
+            console.error(event.target.error);
+            reject(sites);
         };
     });
 }
