@@ -14,8 +14,8 @@ function template(name, templateFunction) {
 }
 
 function setupRoutes() {
-    template('home', function(historyState) {
-        viewUnread(historyState);
+    template('home', function() {
+        viewUnread();
     });
 
     template('add-feed', function() {
@@ -27,8 +27,8 @@ function setupRoutes() {
         listOfFeeds();
     });
 
-    template('feed', function(hash, historyState) {
-        viewSiteByHash(hash, historyState);
+    template('feed', function(hash) {
+        viewSiteByHash(hash);
     });
 
     template('article', function(hash, historyState) {
@@ -61,7 +61,7 @@ function router(historyState) {
     let urls = url.split('/');
     if ( urls.length == 2 || urls[2] == '' ) {
         let route = resolveRouter(urls[1]);
-        route(historyState);
+        route();
     } else if ( urls.length > 2 ) {
         let route = resolveRouter(urls[1]);
         route(urls[2], historyState);

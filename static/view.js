@@ -28,17 +28,10 @@ function showOneMain(id) {
     });
 }
 
-async function viewUnread(historyState) {
+async function viewUnread() {
     const parent = document.getElementById(ARTICLE_LIST_ID);
     document.title = "Offline RSS Reader"
-    let articles;
-    if ( historyState == undefined || historyState == null ) {
-        articles = await getUnreadArticles();
-        const idRanges = createArticleIdRanges(articles);
-        window.history.pushState({idRanges: idRanges}, "", "/");
-    } else {
-        articles = await getArticles(historyState.idRanges);
-    }
+    let articles = await getUnreadArticles();
     parent.replaceChildren();
     if ( articles.length == 0 ) {
         const message = "<p>There are no articles in this feed.</p>";
@@ -102,23 +95,13 @@ function removeSiteFromSidebar(site) {
 
 async function viewSiteFeeds(evt) {
     evt.preventDefault();
-    let href = evt.currentTarget.href;
-    let articles;
-    if ( this.onlyUnread ) {
-        articles = await getSiteArticles(this.site.id, 0);
-    } else {
-        articles = await getSiteArticles(this.site.id);
+    if ( window.location.href != evt.currentTarget.href ) {
+        window.history.pushState(null, "", evt.currentTarget.href);
     }
-    const idRanges = createArticleIdRanges(articles);
-    if ( window.location.href != href ) {
-        window.history.pushState({idRanges: idRanges}, "", href);
-    } else {
-        window.history.replaceState({idRanges: idRanges}, "", href);
-    }
-    emitFeedArticles(this.site, articles, this.onlyUnread);
+    emitFeedArticles(this.site, this.onlyUnread);
 }
 
-async function viewSiteByHash(siteHash, historyState) {
+async function viewSiteByHash(siteHash) {
     let site = null;
     let hash = parseInt(siteHash);
     if ( !isNaN(hash) ) {
@@ -135,19 +118,18 @@ async function viewSiteByHash(siteHash, historyState) {
             window.scroll(0, 0);
         }
     } else {
-        let articles;
-        if ( historyState === null || historyState === undefined ) {
-            articles = await getSiteArticles(this.site.id, 0);
-        } else {
-            articles = await getArticles(historyState.idRanges);
-        }
-        emitFeedArticles(site, articles, true);
+        emitFeedArticles(site, true);
     }
 }
 
-async function emitFeedArticles(site, articles, onlyUnread) {
+async function emitFeedArticles(site, onlyUnread) {
     const parent = document.getElementById(ARTICLE_LIST_ID);
     document.title = site.title;
+    if ( onlyUnread ) {
+        articles = await getSiteArticles(site.id, 0);
+    } else {
+        articles = await getSiteArticles(site.id);
+    }
 
     parent.replaceChildren();
     if ( articles.length == 0 ) {
