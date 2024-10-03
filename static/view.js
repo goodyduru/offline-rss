@@ -404,7 +404,7 @@ async function listOfFeeds() {
         parent.insertAdjacentHTML("beforeend", message);
         return;
     }
-    const table = htmlToNode("<table><thead><tr><th scope='col' colspan='1'>Feed Name</th></tr></thead><tbody></tbody></table>");
+    const table = htmlToNode("<table><thead><tr><th scope='col'>Feed Name</th><th></th><th></th></tr></thead><tbody></tbody></table>");
     const body = table.lastChild;
     for ( site of sites ) {
         let html = `<tr><td>${site.title}</td><td><a href="#" class="btn">Rename</a></td><td><a href="#" class="btn btn-danger">Delete</a></td></tr>`;

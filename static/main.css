@@ -124,7 +124,7 @@ p, h1, h2, h3, h4, h5, h6 {
 }
 
 /*
-    Courtsey of https://codepen.io/Ian-Waldron/pen/oNKNGqe
+    Courtesy of https://codepen.io/Ian-Waldron/pen/oNKNGqe
 */
 
 html, body {
@@ -266,15 +266,52 @@ body > .wrapper > header button {
     cursor: pointer;
 }
 
-h1 {
-    margin: 0;
-}
-
 main {
     background: #fff;
     min-height: calc(100vh - var(--header-height));
     padding: 1rem;
     box-sizing: border-box;
+}
+
+/*
+    Courtesy of https://codepen.io/AllThingsSmitty/pen/MyqmdM
+*/
+table {
+    border: 0;
+    border-collapse: collapse;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    table-layout: fixed;
+}
+
+table tr {
+    border-bottom: 3px solid #ddd;
+    display: block;
+    margin-bottom: 0.625em;
+    background-color: #f8f8f8;
+    padding: 0.35em;
+}
+table th, table td {
+    border-bottom: 1px solid #ddd;
+    display: block;
+    font-size: 0.8em;
+    padding: 0.625em;
+    text-align: center;
+}
+
+table th {
+    font-size: 0.85em;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+table th:first-child, td:last-child {
+    border-bottom: 0;
+}
+
+table th:not(:first-child) {
+    display: none;
 }
 
 .unread {
@@ -317,11 +354,32 @@ main {
     .wrapper.sidebar-open .sidebar {
         width: var(--sidebar-width);
     }
+
+    table {
+        border: 1px solid #ccc;
+    }
+
+    table tr {
+        border: 1px solid #ddd;
+        display: table-row;
+    }
+
+    table th,
+    table td {
+        border-bottom: 0;
+        display: table-cell;
+        font-size: 1em;
+    }
+
+    table th:not(:first-child) {
+        display: table-cell;
+    }
 }
 
 @media (min-width: 768px) {
     .sidebar {
         width: calc(var(--sidebar-width-narrow));
+        overflow-x: hidden;
     }
 
     .sidebar .brand {
@@ -352,6 +410,11 @@ main {
 
     .sidebar:hover {
         width: var(--sidebar-width);
+    }
+
+    .wrapper.sidebar-open .sidebar,
+    .sidebar:hover {
+        overflow-x: auto;
     }
 
     .sidebar:hover .brand {
@@ -390,6 +453,7 @@ main {
 
     .sidebar {
         width: var(--sidebar-width);
+        overflow-x: auto;
     }
 
     .sidebar .brand span,
