@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width">
 
         <title>Offline RSS Reader</title>
+        <link rel="preload" as="font" crossorigin href="/webfonts/fa-solid-900.woff2">
         <link href="/main.css" rel="stylesheet">
         <script src="/parser.js" defer></script>
         <script src="/feedfinder.js" defer></script>
@@ -16,17 +17,27 @@
     </head>
     <body>
         <div class="wrapper">
-            <aside>
+            <aside class="sidebar">
+                <div class="top">
+                    <div class="brand"><div><i class="fa-solid fa-rss"></i><span>Offline RSS Reader</span></div></div>
+                    <div class="controls">
+                        <button class="pin"><i class="fa-solid fa-thumbtack"></i></button>
+                        <button class="close"><i class="fa-solid fa-x"></i></button>
+                    </div>
+                </div>
                 <ul>
                     <li><a href="/">Home</a></li>
                     <li><a href="/feed-list">All Feeds</a></li>
                     <li><a href="/add-feed">Add Feed</a></li>
                 </ul>
-
+                <hr>
                 <ul id="sidebar-feeds">
-
                 </ul>
             </aside>
+            <header>
+                <button class="bars"><i class="fa-solid fa-bars"></i></button>
+                <h1></h1>
+            </header>
             <main id="article-list">Article List</main>
             <main id="single-article" class="d-none">Single Article</main>
             <main id="feed-list" class="d-none">All Feeds</main>

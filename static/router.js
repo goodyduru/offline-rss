@@ -19,6 +19,7 @@ function setupRoutes() {
     });
 
     template('add-feed', function() {
+        updateTitles("Add New Feed");
         document.getElementById("feed-options").replaceChildren();
         showOneMain("add-feed")
     });

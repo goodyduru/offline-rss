@@ -1,3 +1,71 @@
+/*!
+ * Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com
+ * License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)
+ * Copyright 2024 Fonticons, Inc.
+ */
+:root, :host {
+    --fa-style-family-classic: 'Font Awesome 6 Free';
+    --fa-font-solid: normal 900 1em/1 'Font Awesome 6 Free'; 
+}
+  
+@font-face {
+    font-family: 'Font Awesome 6 Free';
+    font-style: normal;
+    font-weight: 900;
+    font-display: block;
+    src: url("./webfonts/fa-solid-900.woff2") format("woff2"), url("./webfonts/fa-solid-900.ttf") format("truetype");
+}
+  
+.fas,
+.fa-solid {
+    font-weight: 900; 
+}
+
+.fa {
+    font-family: var(--fa-style-family, "Font Awesome 6 Free");
+    font-weight: var(--fa-style, 900); 
+}
+  
+.fa-solid,
+.fa-regular,
+.fa-brands,
+.fas,
+.far,
+.fab,
+.fa-sharp-solid,
+.fa-classic,
+.fa {
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    display: var(--fa-display, inline-block);
+    font-style: normal;
+    font-variant: normal;
+    line-height: 1;
+    text-rendering: auto; 
+}
+  
+.fas,
+.fa-classic,
+.fa-solid,
+.far,
+.fa-regular {
+    font-family: 'Font Awesome 6 Free'; 
+}
+
+.fa-thumbtack::before {
+    content: "\f08d"; 
+}
+
+.fa-rss::before {
+    content: "\f09e"; 
+}
+
+.fa-x::before {
+    content: "\58"; 
+}
+
+.fa-bars::before {
+    content: "\f0c9"; }
 /*
   1. Use a more-intuitive box-sizing model.
 */
@@ -55,19 +123,158 @@ p, h1, h2, h3, h4, h5, h6 {
     display:none;
 }
 
-.wrapper {
-    display: grid;
-    grid-template-columns: 1fr 3fr;
+/*
+    Courtsey of https://codepen.io/Ian-Waldron/pen/oNKNGqe
+*/
+
+html, body {
+    --sidebar-width: 250px;
+    --sidebar-width-narrow: 50px;
+    --header-height: 75px;
+    min-height: 100vh;
+    padding: 0;
+    font-family: sans-serif;
+    background: #f0f0f0;
 }
 
-aside {
-    grid-column-start: 1;
-    grid-column-end: 2;
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 100%;
+    background: rgba(240, 240, 240, .9);
+    overflow-y: scroll;
+    transition: width ease-in 300ms;
+}
+
+.sidebar .top {
+    position: sticky;
+    top: 0;
+    padding: .5rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    height: calc(var(--header-height));
+    box-sizing: border-box;
+    background-color: rgba(240, 240, 240, .9);
+}
+
+.sidebar .brand {
+    font-size: 1.2rem;
+    white-space: nowrap;
+    width: 100%;
+}
+
+.sidebar .brand span {
+    padding-left: .5rem;
+    transition: opacity ease-in 200ms;
+    transition-delay: 150ms;
+}
+
+.sidebar .controls {
+    margin-left: auto;
+    margin-bottom: auto;
+}
+
+.sidebar .controls button {
+    background: none;
+    border: none;
+    font-size: 1.05rem;
+    cursor: pointer;
+}
+
+.sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    transition: opacity ease-in 200ms;
+    transition-delay: 150ms;
+}
+
+.sidebar li {
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar li a {
+    display: inline-block;
+    width: 100%;
+    padding: .5rem 1rem;
+    text-decoration: none;
+    color: inherit;
+    box-sizing: border-box;
+}
+
+.wrapper.sidebar-open .sidebar {
+    width: 100%;
+}
+
+.wrapper.sidebar-open .sidebar .brand {
+    text-align: left;
+}
+
+.wrapper.sidebar-open .sidebar .brand span {
+    display: inline;
+}
+
+.wrapper.sidebar-open .sidebar .close {
+    display: inline-block;
+}
+
+.wrapper .sidebar .pin,
+.wrapper .sidebar .close,
+.wrapper.sidebar-open .sidebar .pin {
+    display: none;
+}
+
+.sidebar li a:hover {
+    background-color: #fff;
+}
+
+#sidebar-feeds span {
+    display: inline-block;
+    position: relative;
+    bottom: 2px;
+    left: 2px;
+    padding: 0.35em 0.65em;
+    font-size: 0.6em;
+    font-weight: 700;
+    line-height: 1;
+    color:#fff;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.375rem;
+    background-color: rgb(108, 117, 125);
+}
+
+body > .wrapper > header {
+    display: flex;
+    align-items: center;
+    height: var(--header-height);
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+body > .wrapper > header button {
+    background: transparent;
+    border: none;
+    font-size: 1.25rem;
+    margin-bottom: auto;
+    margin-right: 1rem;
+    cursor: pointer;
+}
+
+h1 {
+    margin: 0;
 }
 
 main {
-    grid-column-start: 2;
-    grid-column-end: auto;
+    background: #fff;
+    min-height: calc(100vh - var(--header-height));
+    padding: 1rem;
+    box-sizing: border-box;
 }
 
 .unread {
@@ -104,4 +311,95 @@ main {
 .form-wrapper {
     background-color: white;
     color: black;
+}
+
+@media (min-width: 567px) {
+    .wrapper.sidebar-open .sidebar {
+        width: var(--sidebar-width);
+    }
+}
+
+@media (min-width: 768px) {
+    .sidebar {
+        width: calc(var(--sidebar-width-narrow));
+    }
+
+    .sidebar .brand {
+        text-align: center;
+    }
+
+    .sidebar .brand span,
+    .sidebar ul {
+        visibility: hidden;
+        opacity: 0;
+    }
+
+    .wrapper > :not(:first-child) {
+        margin-left: var(--sidebar-width-narrow);
+    }
+
+    .wrapper.sidebar-open .sidebar {
+        background: transparent;
+    }
+
+    .wrapper.sidebar-open > :not(:first-child) {
+        margin-left: var(--sidebar-width);
+    }
+
+    body > .wrapper > header button {
+        display: none;
+    }
+
+    .sidebar:hover {
+        width: var(--sidebar-width);
+    }
+
+    .sidebar:hover .brand {
+        text-align: left;
+    }
+
+    .sidebar .brand > div:first-child {
+        position: relative;
+    }
+
+    .sidebar .brand > div:first-child span {
+        position: absolute;
+    }
+
+    .wrapper:not(.sidebar-open) .sidebar:hover .pin {
+        display: inline-block;
+    }
+
+    .wrapper.sidebar-open .sidebar .brand span,
+    .sidebar:hover .brand span,
+    .sidebar:hover ul,
+    .wrapper.sidebar-open .sidebar ul {
+        visibility: visible;
+        opacity: 1;
+    }
+}
+
+@media (min-width: 992px) {
+    .sidebar .brand {
+        text-align: left;
+    }
+
+    .sidebar .top .controls {
+        visibility: hidden;
+    }
+
+    .sidebar {
+        width: var(--sidebar-width);
+    }
+
+    .sidebar .brand span,
+    .sidebar ul,
+    .wrapper .sidebar ul {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .wrapper > :not(:first-child) {
+        margin-left: var(--sidebar-width);
+    }
 }

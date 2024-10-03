@@ -11,7 +11,7 @@ function htmlToNode(html) {
 function getCountContent(unreadArticles) {
     let count;
     if ( unreadArticles > 0 ) {
-        count = `(${unreadArticles})`;
+        count = `<span>${unreadArticles}</span>`;
     } else {
         count = "";
     }
@@ -28,17 +28,23 @@ function showOneMain(id) {
     });
 }
 
+function updateTitles(title) {
+    document.title = title;
+    const h1 = document.querySelector(".wrapper header h1");
+    h1.textContent = title;
+}
+
 async function viewUnread() {
     const parent = document.getElementById(ARTICLE_LIST_ID);
-    document.title = "Offline RSS Reader"
+    updateTitles("Home");
     let articles = await getUnreadArticles();
     parent.replaceChildren();
     if ( articles.length == 0 ) {
-        const message = "<p>There are no articles in this feed.</p>";
+        const message = "<p>You don't have any unread articles.</p>";
         parent.insertAdjacentHTML("beforeend", message);
-        return;
+    } else {
+        parent.appendChild(listArticles(articles));
     }
-    parent.appendChild(listArticles(articles));
     if ( parent.classList.contains("d-none") ) {
         showOneMain(ARTICLE_LIST_ID);
     } else {
@@ -68,7 +74,7 @@ function addSiteToSidebar(parent, site) {
         }
     }
     const hash = cyrb53(site.feedUrl);
-    const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}<span>${getCountContent(site.numUnreadArticles)}</span></a></li>`;
+    const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}${getCountContent(site.numUnreadArticles)}</a></li>`;
     const listItem = htmlToNode(html);
     let v = viewSiteFeeds.bind({site: site, onlyUnread: true});
     listItem.firstChild.addEventListener('click', v);
@@ -77,7 +83,7 @@ function addSiteToSidebar(parent, site) {
 
 function updateSiteSidebar(site) {
     const hash = cyrb53(site.feedUrl);
-    const content = `${site.title}<span>${getCountContent(site.numUnreadArticles)}</span>`;
+    const content = `${site.title}${getCountContent(site.numUnreadArticles)}`;
     const anchor = document.getElementById(`feed-${hash}`);
     anchor.replaceChildren();
     anchor.innerHTML = content;
@@ -124,7 +130,7 @@ async function viewSiteByHash(siteHash) {
 
 async function emitFeedArticles(site, onlyUnread) {
     const parent = document.getElementById(ARTICLE_LIST_ID);
-    document.title = site.title;
+    updateTitles(site.title);
     if ( onlyUnread ) {
         articles = await getSiteArticles(site.id, 0);
     } else {
@@ -237,7 +243,7 @@ function viewArticle(evt) {
 
 async function emitArticle(articles, index, idRanges) {
     const article = articles[index];
-    document.title = article.title;
+    updateTitles(article.title);
     if ( article.isRead == 0 ) {
         const site = await getSite(article.siteId);
         if ( site == null ) {
@@ -251,7 +257,7 @@ async function emitArticle(articles, index, idRanges) {
     }
     const parent = document.getElementById(SINGLE_ARTICLE_ID);
     const articleLink = `<p><a href="${article.link}" target="_blank">Visit site</a></p>`
-    const html = `<article><h2>${article.title}</h2>${articleLink}<section>${article.content}</section></article>`;
+    const html = `<article><section>${articleLink}</section><section>${article.content}</section></article>`;
     parent.replaceChildren();
     parent.insertAdjacentHTML("beforeend", html);
     const nav = document.createElement("section");
@@ -389,6 +395,7 @@ async function addFeed(evt) {
 }
 
 async function listOfFeeds() {
+    updateTitles("All Feeds");
     const parent = document.getElementById(FEED_LIST_ID);
     const sites = await getAllSites();
     parent.replaceChildren();
