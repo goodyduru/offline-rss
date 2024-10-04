@@ -47,32 +47,40 @@
                         <label for="feed-url" class="d-none">URL:</label>
                         <input type="url" name="feed-url" id="feed-url" placeholder="URL" required>
                     </fieldset>
-                    <button id="add-feed-btn">Add Feed</button>
+                    <button id="add-feed-btn" class="btn">Add Feed</button>
                 </form>
                 <section id="feed-options"></section>
             </main>
         </div>
         <div id="network-loader" class="loader"><p></p></div>
         <div id="modal-forms" class="loader">
-            <div id="rename-form" class="form-wrapper d-none">
+            <div id="rename-form" class="card d-none">
                 <form>
-                    <fieldset>
-                        <label for="feed-title">Title:</label>
-                        <input type="text" name="feed-title" id="feed-title" placeholder="Feed Title" required>
-                    </fieldset>
-                    <div>
-                        <span>RSS URL:</span>
-                        <span></span>
-                    </div>
-                    <button type="submit">Rename</button>
-                    <button type="button">Cancel</button>
+                    <section class="card-body">
+                        <fieldset>
+                            <label for="feed-title">Title:</label>
+                            <input type="text" name="feed-title" id="feed-title" placeholder="Feed Title" required>
+                        </fieldset>
+                        <div>
+                            <span>RSS URL:</span>
+                            <span></span>
+                        </div>
+                    </section>
+                    <section class="card-footer">
+                        <button type="submit" class="btn">Rename</button>
+                        <button type="button" class="btn">Cancel</button>
+                    </section>
                 </form>
             </div>
-            <div id="delete-form" class="form-wrapper d-none">
+            <div id="delete-form" class="card d-none">
                 <form>
-                    <div><p>Are you sure you want to delete...</p></div>
-                    <button type="submit">Delete</button>
-                    <button type="button">Cancel</button>
+                    <section class="card-body">
+                        <div><p>Are you sure you want to delete...</p></div>
+                    </section>
+                    <section class="card-footer">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                        <button type="button" class="btn">Cancel</button>
+                    </section>
                 </form>
             </div>
         </div>

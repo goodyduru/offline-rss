@@ -37,13 +37,20 @@ function updateTitles(title) {
 async function viewUnread() {
     const parent = document.getElementById(ARTICLE_LIST_ID);
     updateTitles("Home");
-    let articles = await getUnreadArticles();
     parent.replaceChildren();
-    if ( articles.length == 0 ) {
-        const message = "<p>You don't have any unread articles.</p>";
+    const sites = await getAllSites();
+    if ( sites.length == 0 ) {
+        let message = "<div class='empty'><p>Looks like you haven't subscribed to any feed 👀</p>";
+        message += "<p><a class='btn' href='/add-feed'>Start here</a></p></div>";
         parent.insertAdjacentHTML("beforeend", message);
     } else {
-        parent.appendChild(listArticles(articles));
+        let articles = await getUnreadArticles();
+        if ( articles.length == 0 ) {
+            const message = "<div class='empty'><p>You don't have any unread articles.</p></div>";
+            parent.insertAdjacentHTML("beforeend", message);
+        } else {
+            parent.appendChild(listArticles(articles));
+        }
     }
     if ( parent.classList.contains("d-none") ) {
         showOneMain(ARTICLE_LIST_ID);
@@ -140,13 +147,13 @@ async function emitFeedArticles(site, onlyUnread) {
     parent.replaceChildren();
     if ( articles.length == 0 ) {
         if ( onlyUnread ) {
-            const divNode = htmlToNode(`<div><p>There are no unread articles in this feed.</p><p><a class="btn" href="/feed/${site.hash}">View Read Articles</a></p></div>`);
+            const divNode = htmlToNode(`<div class="empty"><p>There are no unread articles in this feed.</p><p><a class="btn" href="/feed/${site.hash}">View Read Articles</a></p></div>`);
             const btn = divNode.lastChild.firstChild;
             let v = viewSiteFeeds.bind({site: site, onlyUnread: false});
             btn.addEventListener('click', v);
             parent.append(divNode);
         } else {
-            const message = "<p>There are no unread articles in this feed.</p>";
+            const message = "<div class='empty'><p>There are no articles in this feed.</p></div>";
             parent.insertAdjacentHTML("beforeend", message);
         }
     } else {
@@ -338,13 +345,13 @@ async function showFeeds(evt) {
 }
 
 async function showFeed(store, url, feedObj) {
-    let html = "<li><div>";
+    let html = "<li class='card'>";
     feedObj.feedUrl = url;
     let dbContainsSite = await hasSite(store, url);
     if ( feedObj.title != "" ) {
-        html += `<h2>${feedObj.title}</h2>`;
+        html += `<header class='card-header'><h3>${feedObj.title}</h3></header>`;
     }
-    html += `<p>Visit the site link: <a href="${feedObj.siteUrl}">${feedObj.siteUrl}</a></p>`;
+    html += `<section class='card-body'><p>Visit the site link: <a href="${feedObj.siteUrl}">${feedObj.siteUrl}</a></p>`;
     if ( feedObj.description != "" ) {
         html += `<div>${feedObj.description}</div>`;
     }
@@ -357,12 +364,13 @@ async function showFeed(store, url, feedObj) {
         }
         html += "</li>";
     }
-    html += "</ul>";
+    html += "</ul></section><footer class='card-footer'>";
     if ( dbContainsSite ) {
-        html += '<p>Added</p>';
+        html += '<p class="btn btn-disabled">Added</p>';
     } else {
-        html += `<form><button id="${feedObj.hash}">Add Feed</button></form>`;
+        html += `<form><button id="${feedObj.hash}" class="btn">Add</button></form>`;
     }
+    html += "</footer>";
     return html;
 }
 
