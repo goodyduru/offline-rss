@@ -38,14 +38,14 @@ async function pollFeed(siteData) {
     if ( hash != siteData.hash ) {
         let feedObj = await getFeedObject(feedResponse);
         let site = generateSiteFromFeedObject(feedObj);
+        
         site.id = siteData.id;
-        site.numUnreadArticles = siteData.numUnreadArticles;
+        site.title = siteData.title;
         let updated = await updateSite(site);
         if ( updated ) {
-            numArticles = await addNewArticlesToSite(feedObj.articles, site.id);
-            site.numUnreadArticles += numArticles;
-            siteData.numUnreadArticles = site.numUnreadArticles;
-            await updateSite(site);
+            Object.assign(siteData, site);
+            numArticles = await addNewArticlesToSite(feedObj.articles, siteData.id);
+            siteData.numUnreadArticles = await countSiteUnreadArticles(site.id);
         }
 
     } else {

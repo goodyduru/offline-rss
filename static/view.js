@@ -69,6 +69,7 @@ async function sidebarSites() {
         return;
     }
     for ( site of sites ) {
+        site.numUnreadArticles = await countSiteUnreadArticles(site.id);
         addSiteToSidebar(parent, site);
     }
 }
@@ -256,10 +257,9 @@ async function emitArticle(articles, index, idRanges) {
         if ( site == null ) {
             return;
         }
-        site.numUnreadArticles--;
         article.isRead = 1;
-        updateArticle(null, article);
-        updateSite(site);
+        await updateArticle(null, article);
+        site.numUnreadArticles = await countSiteUnreadArticles(article.siteId);
         updateSiteSidebar(site);
     }
     const parent = document.getElementById(SINGLE_ARTICLE_ID);
@@ -306,9 +306,8 @@ async function toggleRead(evt) {
     if ( site == null ) {
         return;
     }
-    site.numUnreadArticles += add;
-    updateArticle(null, this.article);
-    updateSite(site);
+    await updateArticle(null, this.article);
+    site.numUnreadArticles = await countSiteUnreadArticles(this.article.siteId);
     target.parentNode.firstChild.classList.toggle("unread");
     target.innerHTML = `<span>${to}</span>`;
     updateSiteSidebar(site);
@@ -399,7 +398,6 @@ async function addFeed(evt) {
     }
     site.numUnreadArticles = numArticles;
     site.id = siteId;
-    await updateSite(site);
     btn.textContent = "Added";
     addSiteToSidebar(null, site);
 }
@@ -437,10 +435,11 @@ async function editSite(evt) {
     const site = this.site;
     const controller = new AbortController();
     const signal = controller.signal;
-    const edit = function(event) {
+    const edit = async function(event) {
         event.preventDefault();
         site.title = form.querySelector('input').value;
         updateSite(site);
+        site.numUnreadArticles = await countSiteUnreadArticles(site.id);
         updateSiteSidebar(site);
         table_row.firstChild.textContent = site.title;
         form.classList.add("d-none");

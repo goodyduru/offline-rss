@@ -51,7 +51,6 @@ function generateSiteFromFeedObject(feedObj) {
         lastModified: feedObj.lastModified,
         nextPoll: feedObj.nextPoll,
         pollInterval: feedObj.pollInterval,
-        numUnreadArticles: 0,
     }
 }
 
@@ -172,14 +171,20 @@ async function updateArticles(articles, metadata, siteId) {
     });
 }
 
-function updateArticle(store, article, id) {
-    if ( store == null ) {
-        store = getObjectStore(ARTICLE_STORE_NAME, "readwrite");
-    }
-    let req = store.put(article, id);
-    req.onerror = (evt) => {
-        console.error(evt.target.error);
-    };
+async function updateArticle(store, article, id) {
+    return new Promise((resolve, reject) => {
+        if ( store == null ) {
+            store = getObjectStore(ARTICLE_STORE_NAME, "readwrite");
+        }
+        let req = store.put(article, id);
+        req.onsuccess = (evt) => {
+            resolve();
+        }
+        req.onerror = (evt) => {
+            console.error(evt.target.error);
+            reject();
+        };
+    });
 }
 
 async function getArticle(id, isHash) {
@@ -379,6 +384,21 @@ async function getAllSites() {
         req.onerror = (event) => {
             console.error(event.target.error);
             reject(sites);
+        };
+    });
+}
+
+async function countSiteUnreadArticles(siteId) {
+    return new Promise((resolve, reject) => {
+        const store = getObjectStore(ARTICLE_STORE_NAME, "readonly");
+        const index = store.index("siteUnread");
+        const req = index.count(IDBKeyRange.only([siteId, 0]));
+        req.onsuccess = (event) => {
+            resolve(event.target.result);
+        };
+        req.onerror = (event) => {
+            console.error(event.target.error);
+            reject(0);
         };
     });
 }
