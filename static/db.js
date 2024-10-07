@@ -159,6 +159,11 @@ async function updateArticles(articles, metadata, siteId) {
                 continue;
             }
             article.siteId = siteId;
+            if ( article.content == null ) {
+                article.content = "";
+            } else {
+                article.content = article.content.innerHTML;
+            }
             let id = metadata.links.get(article.link);
             if (id != undefined ) {
                 updateArticle(store, article, id);

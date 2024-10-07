@@ -99,7 +99,7 @@ function parseRSSEntities(tree) {
         let pubDate = item.querySelector("pubDate");
         entry.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "").trim() : "";
         entry.link = ( link != null ) ? link.innerHTML : "";
-        entry.content = convertImagesSrc(description, entry.link);
+        entry.content = getDOMObject(description, entry.link);
         entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         entry.hash = cyrb53(item.innerHTML);
         result.push(entry);
@@ -118,28 +118,34 @@ function parseAtomEntities(tree) {
         let pubDate = item.querySelector("published");
         entry.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "").trim() : "";
         entry.link = ( link != null ) ? link.getAttribute("href") : "";
-        entry.content = convertImagesSrc(content, entry.link);
+        entry.content = getDOMObject(content, entry.link);
         entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         entry.hash = cyrb53(item.innerHTML);
         if ( entry.pubDate == "" ) {
             pubDate = item.querySelector("updated");
             entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         }
-        if ( entry.content == "" ) {
+        if ( entry.content == null ) {
             content = item.querySelector("summary");
-            entry.content = convertImagesSrc(content, entry.link);
+            entry.content = getDOMObject(content, entry.link);
         }
         result.push(entry);
     });
     return result;
 }
 
-function convertImagesSrc(articleContent, articleUrl) {
+function getDOMObject(articleContent, articleUrl) {
     if ( articleContent == null ) {
-        return "";
+        return null;
     }
     const html = articleContent.innerHTML.replace("<![CDATA[", "").replace("]]>", "");
     const tree = new window.DOMParser().parseFromString(html, "text/html");
+    convertImagesSrc(tree, articleUrl);
+    convertAnchorsHref(tree, articleUrl);
+    return tree.body
+}
+
+function convertImagesSrc(tree, articleUrl) {
     let images = tree.querySelectorAll("img");
     for ( img of images ) {
         let url = new URL(img.getAttribute('src'), articleUrl);
@@ -163,5 +169,17 @@ function convertImagesSrc(articleContent, articleUrl) {
         let url = new URL(source.getAttribute('srcset'), articleUrl);
         source.setAttribute("srcset", `/proxy?u=${encodeURIComponent(url.toString())}`);
     }
-    return tree.body.innerHTML
+}
+
+function convertAnchorsHref(tree, articleUrl) {
+    let anchors = tree.querySelectorAll("a");
+    for ( anchor of anchors ) {
+        let href = anchor.getAttribute('href');
+        if ( href == "" || href.startsWith("#") ) {
+            continue;
+        }
+        let url = new URL(href, articleUrl);
+        anchor.setAttribute("href", url.toString());
+        anchor.setAttribute("target", "_blank");
+    }
 }
