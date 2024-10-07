@@ -63,9 +63,14 @@
 .fa-x::before {
     content: "\58"; 
 }
-
 .fa-bars::before {
     content: "\f0c9"; }
+
+.fa-envelope::before {
+    content: "\f0e0"; }
+
+.fa-envelope-open::before {
+    content: "\f2b6"; }
 /*
   1. Use a more-intuitive box-sizing model.
 */
@@ -442,6 +447,123 @@ fieldset input {
     justify-content: center;
     align-items: center;
     height: calc(100vh - var(--header-height));
+}
+
+#article-list ul {
+    list-style: none;
+    padding: 0;
+}
+
+#article-list li {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #ccc;
+    padding: 4px 0;
+}
+
+#article-list ul a,
+#single-article > section:last-child a {
+    color: #80727B;
+    text-decoration: none;
+}
+
+#article-list ul a:hover,
+#single-article > section:last-child a:hover{
+    color: #545643;
+}
+
+#article-list a + a {
+    margin-left: 15px;
+    position: relative;
+}
+
+#article-list a + a span {
+    display: none;
+}
+
+#article-list a:first-child + a::before{
+    font-family: var(--fa-style-family, "Font Awesome 6 Free");
+    font-weight: var(--fa-style, 900); 
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    display: var(--fa-display, inline-block);
+    font-style: normal;
+    font-variant: normal;
+    line-height: 1;
+    text-rendering: auto; 
+    content: "\f0e0";
+}
+
+#article-list a.unread + a::before {
+    content: "\f2b6";
+}
+
+#article-list a + a::after {
+    position: absolute;
+    bottom: 16px;
+    right: 20px;
+    width: 95px;
+    display: inline-block;
+    content: "Mark as unread";
+    background: #BBACC1;
+    color: white;
+    padding: 3px 0;
+    font-size: 12px;
+    border-radius: 3px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 150ms;
+}
+
+#article-list a.unread + a::after {
+    content: "Mark as read";
+}
+
+#article-list a + a:hover::after {
+    opacity: 1;
+}
+
+#single-article pre {
+    overflow-x: scroll;
+    margin: 15px 0;
+    border-top: 1px dashed #999;
+    border-left: 1px dashed #999;
+    padding-left: 5px;
+}
+
+#single-article hr {
+    margin: 5px 0;
+}
+
+#single-article article a {
+    color: #000;
+    text-decoration: none;
+    border-bottom: 1px solid #666;
+}
+
+#single-article article a:hover {
+    border-bottom: 2px solid #333;
+}
+
+#single-article h1, #single-article h2 {
+    margin: 10px 0px 5px;
+}
+
+#single-article img {
+    margin: 5px 0;
+}
+
+#single-article > section:nth-child(2) {
+    margin: 10px 0;
+}
+
+#single-article > section:last-child {
+    display: flex;
+    justify-content: space-evenly;
+}
+
+#single-article > section:last-child a {
+    font-weight: bold;
 }
 
 @media (min-width: 567px) {

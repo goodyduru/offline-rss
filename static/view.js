@@ -191,7 +191,7 @@ function listArticles(articles) {
         let article = articles[i]
         const anchorClass = ( article.isRead == 1 ) ? "" : "unread";
         const toggle = ( article.isRead == 1 ) ? "Mark as unread" : "Mark as read";
-        const html = `<li><a href="/article/${article.hash}" class="${anchorClass}">${article.title}</a><a href="#">${toggle}</a></li>`;
+        const html = `<li><a href="/article/${article.hash}" class="${anchorClass}">${article.title}</a><a href="#"><span>${toggle}</span></a></li>`;
         const listItem = htmlToNode(html);
         let v = viewArticle.bind({articles: articles, index: i, idRanges: idRanges});
         let t = toggleRead.bind({article: article});
@@ -263,10 +263,11 @@ async function emitArticle(articles, index, idRanges) {
         updateSiteSidebar(site);
     }
     const parent = document.getElementById(SINGLE_ARTICLE_ID);
-    const articleLink = `<p><a href="${article.link}" target="_blank">Visit site</a></p>`
-    const html = `<article><section>${articleLink}</section><section>${article.content}</section></article>`;
+    const html = `<article>${article.content}</article>`;
+    const articleLink = `<section><a href="${article.link}" class="btn" target="_blank">Read More</a></section>`
     parent.replaceChildren();
     parent.insertAdjacentHTML("beforeend", html);
+    parent.insertAdjacentHTML("beforeend", articleLink);
     const nav = document.createElement("section");
     if ( index > 0 ) {
         let prev = htmlToNode(`<a href="/article/${articles[index-1].hash}">Prev</a>`);
@@ -291,6 +292,7 @@ async function emitArticle(articles, index, idRanges) {
 
 async function toggleRead(evt) {
     evt.preventDefault();
+    const target = evt.currentTarget;
     this.article.isRead = (this.article.isRead == 1) ? 0 : 1;
     let add, to;
     if ( this.article.isRead == 1 ) {
@@ -307,8 +309,8 @@ async function toggleRead(evt) {
     site.numUnreadArticles += add;
     updateArticle(null, this.article);
     updateSite(site);
-    evt.target.parentNode.firstChild.classList.toggle("unread");
-    evt.target.innerHTML = to;
+    target.parentNode.firstChild.classList.toggle("unread");
+    target.innerHTML = `<span>${to}</span>`;
     updateSiteSidebar(site);
 }
 
