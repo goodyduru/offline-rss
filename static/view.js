@@ -319,14 +319,15 @@ async function showFeeds(evt) {
     const loader = document.getElementById("network-loader");
     loader.style.display = "flex";
     const feeds = await findFeeds(feedUrl);
+    const feedList = document.getElementById("feed-options");
+    feedList.replaceChildren();
     if ( feeds == null || feeds.urls.length == 0 ) {
         loader.style.display = "none";
-        alert("No feed in the given website.");
+        const message = "<div class='empty'><p>No feed in the given url.</p></div>";
+        feedList.insertAdjacentHTML("beforeend", message);
         return;
     }
     let unorderedList = document.createElement("ul");
-    const feedList = document.getElementById("feed-options");
-    feedList.replaceChildren();
     feedList.appendChild(unorderedList);
     let store = getObjectStore(SITE_STORE_NAME, "readonly");
     for ( url of feeds.urls ) {

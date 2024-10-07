@@ -23,6 +23,9 @@ async function pollFeed(siteData) {
     let numArticles = 0;
     const MAX_WAIT_TIME = 3600000; 
     const feedResponse = await fetchMyFeed(url, etag, lastModified);
+    if ( feedResponse == null ) {
+        return 0;
+    }
     if ( feedResponse.status == 304 && siteData.pollInterval < MAX_WAIT_TIME ) {
         siteData.pollInterval = Math.min(MAX_WAIT_TIME, siteData.pollInterval*2);
     } else if ( feedResponse.status == 429 || feedResponse.status == 403 ) {
@@ -66,9 +69,14 @@ async function fetchMyFeed(url, etag, lastModified) {
     if ( lastModified != null ) {
         myHeaders.append("If-Modified-Since", lastModified);
     }
-    const response = await fetch(`/proxy?u=${encodeURIComponent(url)}`, {
-        headers: myHeaders
-    });
+    let response;
+    try {
+        response = await fetch(`/proxy?u=${encodeURIComponent(url)}`, {
+            headers: myHeaders
+        });
+    } catch {
+        return null;
+    }
     let result = {lastModified: "", etag: "", text: "", status: response.status};
     if ( !response.ok ) {
         return result;

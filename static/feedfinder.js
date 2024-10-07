@@ -25,7 +25,11 @@ function isFeedData(text) {
 }
 
 async function getNewFeed(url) {
-    const response = await fetch(`/proxy?u=${encodeURIComponent(url)}`);
+    try {
+        const response = await fetch(`/proxy?u=${encodeURIComponent(url)}`);
+    } catch {
+        return null;
+    }
 
     if (!response.ok) {
         return null;
@@ -68,10 +72,10 @@ function isFeedLikeUrl(url) {
 async function findFeeds(url, checkAll=false) {
     url = coerceUrl(url);
     const feedResponse = await getNewFeed(url);
-    const feedText = feedResponse.text;
-    if ( feedText == null ) {
+    if ( feedResponse == null || feedResponse.text == null ) {
         return null;
     }
+    const feedText = feedResponse.text;
     // initialize a key-value map for a url and its feed object. 
     // This will also act as a cache to avoid parsing a feed url.
     let feedMap = new Map();
