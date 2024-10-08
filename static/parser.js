@@ -118,31 +118,31 @@ function parseAtomEntities(tree) {
         let pubDate = item.querySelector("published");
         entry.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "").trim() : "";
         entry.link = ( link != null ) ? link.getAttribute("href") : "";
-        entry.content = getDOMObject(content, entry.link);
+        entry.content = getDOMText(content, entry.link);
         entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         entry.hash = cyrb53(item.innerHTML);
         if ( entry.pubDate == "" ) {
             pubDate = item.querySelector("updated");
             entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         }
-        if ( entry.content == null ) {
+        if ( entry.content == "" ) {
             content = item.querySelector("summary");
-            entry.content = getDOMObject(content, entry.link);
+            entry.content = getDOMText(content, entry.link);
         }
         result.push(entry);
     });
     return result;
 }
 
-function getDOMObject(articleContent, articleUrl) {
+function getDOMText(articleContent, articleUrl) {
     if ( articleContent == null ) {
-        return null;
+        return "";
     }
     const html = articleContent.innerHTML.replace("<![CDATA[", "").replace("]]>", "");
     const tree = new window.DOMParser().parseFromString(html, "text/html");
     convertImagesSrc(tree, articleUrl);
     convertAnchorsHref(tree, articleUrl);
-    return tree.body
+    return tree.body.innerHTML;
 }
 
 function convertImagesSrc(tree, articleUrl) {

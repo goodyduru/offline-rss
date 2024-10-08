@@ -37,6 +37,12 @@ async function init() {
     doPolling();
     await sidebarSites();
     initRouter();
+    console.time("building index time");
+    await buildIndex();
+    console.timeEnd("building index time");
+    console.time("test time");
+    test();
+    console.timeEnd("test time");
 }
 
 init();

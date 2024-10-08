@@ -105,6 +105,9 @@ function addArticle(storeObject, article) {
     req.onerror = (evt) => {
         console.error(evt.target.error);
     };
+    req.onsuccess = (evt) => {
+        article.id = evt.target.result;
+    }
 }
 
 async function hasSite(store, feedUrl) {
@@ -142,10 +145,10 @@ async function updateSite(site) {
 async function addNewArticlesToSite(articles, siteId) {
     let metadata = await getCurrentArticlesMetaData(articles.length, siteId);
     if ( metadata == null ) {
-        return 0;
+        return null;
     }
-    let numArticlesAdded = await updateArticles(articles, metadata, siteId);
-    return numArticlesAdded;
+    let newArticleObjects = await updateArticles(articles, metadata, siteId);
+    return newArticleObjects;
 }
 
 async function updateArticles(articles, metadata, siteId) {
@@ -153,26 +156,27 @@ async function updateArticles(articles, metadata, siteId) {
         let end = articles.length - 1;
         let store = getObjectStore(ARTICLE_STORE_NAME, "readwrite");
         let result = 0;
+        let newArticleHashes = new Set();
         for ( let i = end; i >= 0; i-- ) {
             let article = articles[i];
             if ( metadata.hashes.has(article.hash) ) {
                 continue;
             }
             article.siteId = siteId;
-            if ( article.content == null ) {
-                article.content = "";
-            } else {
-                article.content = article.content.innerHTML;
-            }
             let id = metadata.links.get(article.link);
             if (id != undefined ) {
                 updateArticle(store, article, id);
             } else {
-                addArticle(store, article);
+                try {
+                    addArticle(store, article);
+                    newArticlesHashes.add(article.hash);
+                } catch {
+                }
             }
             result++;
         }
-        resolve(result);
+        console.log(result);
+        resolve({numArticlesAdded: result, hashes: newArticleHashes});
     });
 }
 

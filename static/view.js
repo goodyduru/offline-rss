@@ -395,12 +395,8 @@ async function addFeed(evt) {
     let numArticles = 0;
     for ( let i = end; i >= 0; i-- ) {
         this.feedObj.articles[i].siteId = siteId;
-        if ( this.feedObj.articles[i].content != null ) {
-            this.feedObj.articles[i].content = this.feedObj.articles[i].content.innerHTML;
-        } else {
-            this.feedObj.articles[i].content = "";
-        }
         numArticles += await getOrCreateArticle(articleStore, this.feedObj.articles[i]);
+        addToIndex(this.feedObj.articles[i]);
     }
     site.numUnreadArticles = numArticles;
     site.id = siteId;

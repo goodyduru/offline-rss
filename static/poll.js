@@ -47,7 +47,17 @@ async function pollFeed(siteData) {
         let updated = await updateSite(site);
         if ( updated ) {
             Object.assign(siteData, site);
-            numArticles = await addNewArticlesToSite(feedObj.articles, siteData.id);
+            let added = await addNewArticlesToSite(feedObj.articles, siteData.id);
+            if ( added != null ) {
+                numArticles = added.numArticlesAdded;
+                for ( article of feedObj.articles ) {
+                    if ( !numArticles.hashes.contains(article.hash) ) {
+                        continue;
+                    }
+                    console.log(article);
+                    addToIndex(article);
+                }
+            }
             siteData.numUnreadArticles = await countSiteUnreadArticles(site.id);
         }
 
