@@ -139,9 +139,9 @@ function addToIndex(article) {
             }
         }
     }
-    let template = document.createElement("div");
+    let template = document.createElement("template");
     template.innerHTML = article.content;
-    let articleContent = template.textContent || template.innerText || "";
+    let articleContent = template.content.textContent || template.content.innerText || "";
 
     let contentArray = articleContent.toLowerCase().split(" ");
     for ( let content of contentArray ) {
@@ -205,11 +205,3 @@ async function buildIndex() {
         }
     }
 }
-
-function test() {
-    // search for article titles that start with the user's query
-    const userInput = "go";
-    let result = search(userInput);
-    console.log(result);
-}
-//r = Object.assign(new Trie, r);

@@ -71,6 +71,9 @@
 
 .fa-envelope-open::before {
     content: "\f2b6"; }
+
+.fa-magnifying-glass::before {
+    content: "\f002"; }
 /*
   1. Use a more-intuitive box-sizing model.
 */
@@ -128,6 +131,25 @@ p, h1, h2, h3, h4, h5, h6 {
     display:none;
 }
 
+fieldset {
+    border: 0;
+    margin-bottom: 13px;
+    padding-left: 0;
+}
+
+fieldset label {
+    display: block;
+    margin-bottom: 3px;
+}
+
+fieldset input {
+    display: block;
+    padding: 10px 10px;
+    width: 100%;
+    border: solid 3px #ccc;
+    border-radius: 2px;
+}
+
 /*
     Courtesy of https://codepen.io/Ian-Waldron/pen/oNKNGqe
 */
@@ -147,6 +169,7 @@ html, body {
     top: 0;
     left: 0;
     width: 0;
+    z-index: 50;
     height: 100%;
     background: rgba(240, 240, 240, .9);
     overflow-y: scroll;
@@ -262,13 +285,61 @@ body > .wrapper > header {
     box-sizing: border-box;
 }
 
-body > .wrapper > header button {
+body > .wrapper > header > button {
     background: transparent;
     border: none;
     font-size: 1.25rem;
     margin-bottom: auto;
     margin-right: 1rem;
     cursor: pointer;
+}
+
+#search-form {
+    display: flex;
+    align-items: center;
+    flex-grow: 2;
+}
+
+#search-form fieldset {
+    position: relative;
+    flex-grow: 2;
+    margin-bottom: 0;
+}
+
+body > .wrapper > section {
+    padding: 0 1rem 0.5rem;
+}
+
+#autocomplete {
+    display: none;
+    position: absolute;
+    max-height: 150px;
+    background-color: #fff;
+    top: calc(100% - 10px);
+    left: 0px;
+    right: 12px;
+    overflow: scroll;
+    border: solid 3px #ccc;
+    border-radius: 2px;
+}
+
+#autocomplete ul {
+    padding-left: 0;
+    list-style: none;
+    padding: .5rem;
+}
+
+#autocomplete a {
+    display: block;
+    text-decoration: none;
+    border-radius: 2px;
+    padding: .5rem;
+    box-sizing: border-box;
+    color: #333;
+}
+
+#autocomplete a:hover {
+    background-color: #f0f0f0;
 }
 
 main {
@@ -355,25 +426,6 @@ table th:not(:first-child) {
   border: 1px solid #999999;
   background-color: #cccccc;
   color: #666666;
-}
-
-fieldset {
-    border: 0;
-    margin-bottom: 13px;
-    padding-left: 0;
-}
-
-fieldset label {
-    display: block;
-    margin-bottom: 3px;
-}
-
-fieldset input {
-    display: block;
-    padding: 10px 10px;
-    width: 100%;
-    border: solid 3px #ccc;
-    border-radius: 2px;
 }
 
 .unread {

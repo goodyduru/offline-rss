@@ -5,6 +5,7 @@ function addEventListeners() {
     const wrapper = document.querySelector('body > .wrapper');
     const links = document.querySelectorAll("aside a");
     const addFeedBtn = document.getElementById("add-feed-btn");
+    const searchInput = document.getElementById("query");
 
     pinBtn.addEventListener('click', () => {
         wrapper.classList.add('sidebar-open');
@@ -29,6 +30,8 @@ function addEventListeners() {
     });
 
     addFeedBtn.addEventListener("click", (evt) => showFeeds(evt));
+
+    searchInput.addEventListener("input", (evt) => fillAutocomplete(evt));
 }
 
 async function init() {
@@ -40,9 +43,6 @@ async function init() {
     console.time("building index time");
     await buildIndex();
     console.timeEnd("building index time");
-    console.time("test time");
-    test();
-    console.timeEnd("test time");
 }
 
 init();

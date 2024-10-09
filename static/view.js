@@ -30,7 +30,7 @@ function showOneMain(id) {
 
 function updateTitles(title) {
     document.title = title;
-    const h1 = document.querySelector(".wrapper header h1");
+    const h1 = document.querySelector(".wrapper > section > h1");
     h1.textContent = title;
 }
 
@@ -506,4 +506,28 @@ function removeRow(tbody, tr) {
         feedListSection.replaceChildren();
         feedListSection.insertAdjacentHTML("beforeend", "<p>You've not subscribed to any feed.</p>");
     }
+}
+
+async function fillAutocomplete(evt) {
+    const autoCompleteBox = document.getElementById("autocomplete");
+    const text = evt.target.value.trim();
+    if ( text == "" ) {
+        autoCompleteBox.style.display = "none";
+        return;
+    }
+    let articleIds = search(text);
+    if ( articleIds.length == 0 ) {
+        autoCompleteBox.style.display = "none";
+        return;
+    }
+    let resultStrings = [];
+    for ( id of articleIds ) {
+        let article = await getArticle(id);
+        let str = `<li><a href="/article/${article.hash}">${article.title}</a></li>`;
+        resultStrings.push(str);
+    }
+    let resultHtml = `<ul>${resultStrings.join("")}</ul>`;
+    autoCompleteBox.innerHTML = resultHtml;
+    autoCompleteBox.style.display = "block";
+    autoCompleteBox.scrollTo(0, 0);
 }

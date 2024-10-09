@@ -100,14 +100,18 @@ async function getOrCreateArticle(store, article) {
     });
 }
 
-function addArticle(storeObject, article) {
-    let req = storeObject.add(article);
-    req.onerror = (evt) => {
-        console.error(evt.target.error);
-    };
-    req.onsuccess = (evt) => {
-        article.id = evt.target.result;
-    }
+async function addArticle(storeObject, article) {
+    return new Promise((resolve, reject) => {
+        let req = storeObject.add(article);
+        req.onerror = (evt) => {
+            console.error(evt.target.error);
+            reject
+        };
+        req.onsuccess = (evt) => {
+            article.id = evt.target.result;
+            resolve();
+        }
+    });
 }
 
 async function hasSite(store, feedUrl) {
@@ -147,37 +151,24 @@ async function addNewArticlesToSite(articles, siteId) {
     if ( metadata == null ) {
         return null;
     }
-    let newArticleObjects = await updateArticles(articles, metadata, siteId);
-    return newArticleObjects;
-}
-
-async function updateArticles(articles, metadata, siteId) {
-    return new Promise((resolve, reject) => {
-        let end = articles.length - 1;
-        let store = getObjectStore(ARTICLE_STORE_NAME, "readwrite");
-        let result = 0;
-        let newArticleHashes = new Set();
-        for ( let i = end; i >= 0; i-- ) {
-            let article = articles[i];
-            if ( metadata.hashes.has(article.hash) ) {
-                continue;
-            }
-            article.siteId = siteId;
-            let id = metadata.links.get(article.link);
-            if (id != undefined ) {
-                updateArticle(store, article, id);
-            } else {
-                try {
-                    addArticle(store, article);
-                    newArticlesHashes.add(article.hash);
-                } catch {
-                }
-            }
-            result++;
+    let end = articles.length - 1;
+    let store = getObjectStore(ARTICLE_STORE_NAME, "readwrite");
+    let result = 0;
+    for ( let i = end; i >= 0; i-- ) {
+        let article = articles[i];
+        if ( metadata.hashes.has(article.hash) ) {
+            continue;
         }
-        console.log(result);
-        resolve({numArticlesAdded: result, hashes: newArticleHashes});
-    });
+        article.siteId = siteId;
+        let id = metadata.links.get(article.link);
+        if (id != undefined ) {
+            await updateArticle(store, article, id);
+        } else {
+            await addArticle(store, article);
+        }
+        result++;
+    }
+    return result;
 }
 
 async function updateArticle(store, article, id) {

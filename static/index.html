@@ -37,8 +37,17 @@
             </aside>
             <header>
                 <button class="bars"><i class="fa-solid fa-bars"></i></button>
-                <h1></h1>
+                <form id="search-form">
+                    <fieldset>
+                        <label for="query" class="d-none">Query:</label>
+                        <input type="search" name="query" id="query" placeholder="Search articles" required>
+                        <div id="autocomplete"></div>
+                    </fieldset>
+                </form>
             </header>
+            <section>
+                <h1></h1>
+            </section>
             <main id="article-list">Article List</main>
             <main id="single-article" class="d-none">Single Article</main>
             <main id="feed-list" class="d-none">All Feeds</main>
