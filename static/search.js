@@ -28,26 +28,122 @@ class Posting {
     }
 }
 
-class TrieNode {
-    constructor() {
-        this.children = {};
+class RadixNode {
+    constructor(key) {
+        this.key = key;
+        this.children = null;
         this.postings = null;
     }
 }
 
-class Trie {
+class Radix {
     constructor() {
-        this.root = new TrieNode();
+        this.root = new RadixNode(null);
+    }
+
+    searchChildren(word, children) {
+        let low = 0;
+        let high = children.length - 1;
+        let char = word[0];
+        while ( low <= high ) {
+            let mid = Math.floor((low + high)/2);
+            let other = children[mid].key[0];
+            if ( char > other ) {
+                low = mid + 1;
+            } else if ( char < other ) {
+                high = mid - 1;
+            } else {
+                return mid;
+            }
+        }
+        return -1;
+    }
+
+    rearrange(children, index, isForward) {
+        if ( isForward ) {
+            while ( index < children.length - 1 ) {
+                let temp = children[index];
+                children[index] = children[index+1];
+                children[index+1] = temp;
+                index++;
+            }
+        } else {
+            while ( index > 0 && children[index-1].key > children[index].key ) {
+                let temp = children[index];
+                children[index] = children[index-1];
+                children[index-1] = temp;
+                index--;
+            }
+        }
     }
 
     insert(word, articleId, isTitle) {
         let node = this.root;
-        for ( let i = 0; i < word.length; i++ ) {
-            let char = word[i];
-            if ( !node.children[char] ) {
-                node.children[char] = new TrieNode();
+        let i = 0;
+        while ( i < word.length ) {
+            let substr = word.substring(i);
+            if ( node.children == null ) {
+                node.children = [substr];
+                node.children[0] = new RadixNode(substr);
+                node = node.children[0];
+                break;
             }
-            node = node.children[char];
+            let index = this.searchChildren(substr, node.children);
+            if ( index == -1 ) {
+                let child = new RadixNode(substr);
+                node.children.push(child);
+                this.rearrange(node.children, node.children.length-1, false);
+                node = child;
+                break;
+            }
+            let node_key = node.children[index].key;
+
+            if ( node_key == substr ) {
+                node = node.children[index];
+                break;
+            }
+
+            let x = 0;
+            let y = 0;
+            while ( x < substr.length && y < node_key.length ) {
+                if ( substr[x] != node_key[y] ) {
+                    break;
+                }
+                x++;
+                y++;
+            }
+
+            // key = java, word = javascript
+            if ( y == node_key.length && x < substr.length ) {
+                i += x;
+                node = node.children[index];
+                continue;
+            }
+
+            // key = javascript, word = java
+            if ( x == substr.length && y < node_key.length ) {
+                let new_key = node_key.substring(y);
+                node.children[index].key = substr;
+                let new_node = new RadixNode(new_key);
+                new_node.postings = node.children[index].postings;
+                new_node.children = node.children[index].children;
+                node.children[index].children = [new_node];
+                node.children[index].postings = null;
+                node = node.children[index];
+                break;
+            }
+
+            // key = jug, word = java
+            let new_key = node_key.substring(0, y);
+            let new_child_key = node_key.substring(y);
+            node.children[index].key = new_key;
+            let new_node = new RadixNode(new_child_key);
+            new_node.postings = node.children[index].postings;
+            new_node.children = node.children[index].children;
+            node.children[index].children = [new_node];
+            node.children[index].postings = null;
+            node = node.children[index];
+            i += x;
         }
         if ( node.postings == null ) {
             let post = new Posting(articleId, isTitle);
@@ -71,42 +167,90 @@ class Trie {
         if ( node === undefined || node == null ) {
             node = this.root;
         }
-        for ( let child in node.children ) {
-            this.delete(articleId, node.children[child]);
-            if ( Object.keys(node.children[child].children).length == 0 && node.children[child].postings == null ) {
-                delete node.children[child];
-            }
-        }
-        if ( node.postings == null ) {
+        if ( node.children == null && node.postings == null ) {
             return;
         }
-        let index = node.postings.findIndex((posting) => posting.id == articleId);
-        if ( index > -1 ) {
-            if ( node.postings.length > 1 ) {
-                node.postings[index] = node.postings[node.postings.length-1];
-                node.postings.pop();
-            } else {
-                node.postings = null;
+        if ( node.children != null ) {
+            let i = 0;
+            let length = node.children.length;
+
+            while ( i < length ) {
+                this.delete(articleId, node.children[i]);
+                if ( node.children[i].children == null && node.children[i].postings == null ) {
+                    if ( length > 1 ) {
+                        this.rearrange(node.children, i, true);
+                        node.children.pop();
+                    }
+                    length--;
+                    continue;
+                }
+                i++;
             }
+            if ( length == 0 ) {
+                node.children = null;
+            }
+        }
+        if ( node.postings != null ) {
+            let index = node.postings.findIndex((posting) => posting.id == articleId);
+            if ( index > -1 ) {
+                if ( node.postings.length > 1 ) {
+                    node.postings[index] = node.postings[node.postings.length-1];
+                    node.postings.pop();
+                } else {
+                    node.postings = null;
+                }
+            }
+        }
+        if ( node != this.root && node.children != null && node.children.length == 1 && node.postings == null ) {
+            let child = node.children[0];
+            node.postings = child.postings;
+            node.children = child.children;
+            node.key = node.key + child.key;
         }
     }
 
     startsWith(prefix) {
         let postings = [];
         let node = this.root;
-        let found = true;
-        for (let i = 0; i < prefix.length; i++ ) {
-            let char = prefix[i];
-            if ( !node.children[char] ) {
-                found = false;
+        let i = 0;
+        while ( i < prefix.length ) {
+            if ( node.children == null ) {
+                return null;
+            }
+            let substr = prefix.substring(i);
+            let index = this.searchChildren(substr, node.children);
+            if ( index == -1 ) {
+                return null;
+            }
+            let node_key = node.children[index].key;
+
+            if ( node_key == substr ) {
+                node = node.children[index];
                 break;
             }
-            node = node.children[char];
-        }
-        if ( !found ) {
+
+            let x = 0;
+            let y = 0;
+            while ( x < substr.length && y < node_key.length ) {
+                if ( substr[x] != node_key[y] ) {
+                    break;
+                }
+                x++;
+                y++;
+            }
+            if ( y == node_key.length && x < substr.length ) {
+                node = node.children[index];
+                i += x;
+                continue;
+            }
+
+            if ( x == substr.length && y < node_key.length ) {
+                node = node.children[index];
+                break;
+            }
+
             return null;
         }
-
         let stack = [node];
         while ( stack.length > 0 ) {
             let node = stack.pop();
@@ -121,7 +265,8 @@ class Trie {
     }
 }
 
-const trie = new Trie();
+const radix = new Radix();
+
 function addToIndex(article) {
     let titleArray = article.title.toLowerCase().split(" ");
     for ( let title of titleArray ) {
@@ -135,7 +280,7 @@ function addToIndex(article) {
                 continue;
             }
             if ( t != "" ) {
-                trie.insert(t, article.id, true);
+                radix.insert(t, article.id, true);
             }
         }
     }
@@ -155,7 +300,7 @@ function addToIndex(article) {
                 continue;
             }
             if ( c != "" ) {
-                trie.insert(c, article.id, false);
+                radix.insert(c, article.id, false);
             }
         }
     }
@@ -170,7 +315,7 @@ function search(words) {
         if ( word == "" ) {
             continue;
         }
-        let res = trie.startsWith(w);
+        let res = radix.startsWith(w);
         if ( res == null ) {
             continue;
         }
