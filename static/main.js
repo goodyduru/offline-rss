@@ -1,3 +1,11 @@
+function closeOnClickOutside(ele) {
+    document.addEventListener('click', event => {
+      if (!ele.contains(event.target) && ele.style.display == 'block') {
+        ele.style.display = 'none';
+      }
+    });
+};
+
 function addEventListeners() {
     const pinBtn = document.querySelector('.pin');
     const closeBtn = document.querySelector('.close');
@@ -6,6 +14,7 @@ function addEventListeners() {
     const links = document.querySelectorAll("aside a");
     const addFeedBtn = document.getElementById("add-feed-btn");
     const searchInput = document.getElementById("query");
+    const autocomplete = document.getElementById("autocomplete");
 
     pinBtn.addEventListener('click', () => {
         wrapper.classList.add('sidebar-open');
@@ -32,6 +41,8 @@ function addEventListeners() {
     addFeedBtn.addEventListener("click", (evt) => showFeeds(evt));
 
     searchInput.addEventListener("input", (evt) => fillAutocomplete(evt));
+
+    closeOnClickOutside(autocomplete);
 }
 
 async function init() {
