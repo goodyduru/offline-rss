@@ -25,8 +25,9 @@ function isFeedData(text) {
 }
 
 async function getNewFeed(url) {
+    let response;
     try {
-        const response = await fetch(`/proxy?u=${encodeURIComponent(url)}`);
+        response = await fetch(`/proxy?u=${encodeURIComponent(url)}`);
     } catch {
         return null;
     }

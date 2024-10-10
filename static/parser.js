@@ -99,7 +99,7 @@ function parseRSSEntities(tree) {
         let pubDate = item.querySelector("pubDate");
         entry.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "").trim() : "";
         entry.link = ( link != null ) ? link.innerHTML : "";
-        entry.content = getDOMObject(description, entry.link);
+        entry.content = getDOMText(description, entry.link);
         entry.pubDate = ( pubDate != null ) ? pubDate.innerHTML : "";
         entry.hash = cyrb53(item.innerHTML);
         result.push(entry);

@@ -149,7 +149,7 @@ class Radix {
             let post = new Posting(articleId, isTitle);
             node.postings = [post];
         } else {
-            let index = node.postings.findIndex((posting) => {posting.id == articleId});
+            let index = node.postings.findIndex((posting) => posting.id == articleId);
             if ( index > -1 ) {
                 if ( isTitle ) {
                     node.postings[index].addTitle();
@@ -348,5 +348,11 @@ async function buildIndex() {
                 addToIndex(article);
             }
         }
+    }
+}
+
+function deleteFromIndex(ids) {
+    for ( id of ids ) {
+        radix.delete(id);
     }
 }

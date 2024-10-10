@@ -85,9 +85,9 @@ async function getOrCreateArticle(store, article) {
     return new Promise((resolve, reject) => {
         let getReq = store.index('hash');
         const req = getReq.get(article.hash);
-        req.onsuccess = (getEvt) => {
+        req.onsuccess = async (getEvt) => {
             if ( typeof getEvt.target.result == 'undefined' ) {
-                addArticle(store, article);
+                await addArticle(store, article);
                 resolve(1);
             } else {
                 resolve(0);
@@ -407,14 +407,16 @@ async function deleteSiteArticles(siteId) {
     return new Promise((resolve, reject) => {
         const store = getObjectStore(ARTICLE_STORE_NAME, "readwrite");
         const index = store.index("siteId");
+        ids = [];
         req = index.openKeyCursor(IDBKeyRange.only(siteId));
         req.onsuccess = (event) => {
             const cursor = event.target.result;
             if ( cursor ) {
+                ids.push(cursor.primaryKey);
                 store.delete(cursor.primaryKey);
                 cursor.continue();
             } else {
-                resolve();
+                resolve(ids);
             }
         };
         req.onerror = (event) => {

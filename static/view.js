@@ -475,8 +475,9 @@ async function deleteSiteAndArticles(evt) {
     const signal = controller.signal;
     const deleteAll = async function(event) {
         event.preventDefault();
-        await deleteSiteArticles(site.id);
+        let ids = await deleteSiteArticles(site.id);
         await deleteSite(site.id);
+        deleteFromIndex(ids);
         removeSiteFromSidebar(site);
         removeRow(table_row.parentNode, table_row);
         textView.textContent = previousStatement;
