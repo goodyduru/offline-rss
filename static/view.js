@@ -38,13 +38,13 @@ async function viewUnread() {
     const parent = document.getElementById(ARTICLE_LIST_ID);
     updateTitles("Home");
     parent.replaceChildren();
-    const sites = await getAllSites();
+    const sites = await app.site_model.getAll();
     if ( sites.length == 0 ) {
         let message = "<div class='empty'><p>Looks like you haven't subscribed to any feed 👀</p>";
         message += "<p><a class='btn' href='/add-feed'>Start here</a></p></div>";
         parent.insertAdjacentHTML("beforeend", message);
     } else {
-        let articles = await getUnreadArticles();
+        let articles = await app.article_model.getUnread();
         if ( articles.length == 0 ) {
             const message = "<div class='empty'><p>You don't have any unread articles.</p></div>";
             parent.insertAdjacentHTML("beforeend", message);
@@ -61,7 +61,7 @@ async function viewUnread() {
 
 async function sidebarSites() {
     const parent = document.getElementById("sidebar-feeds");
-    const sites = await getAllSites();
+    const sites = await app.site_model.getAll();
     parent.replaceChildren();
     if ( sites.length == 0 ) {
         const message = "<p>You've not subscribed to any feed.</p>";
@@ -69,7 +69,7 @@ async function sidebarSites() {
         return;
     }
     for ( site of sites ) {
-        site.numUnreadArticles = await countSiteUnreadArticles(site.id);
+        site.numUnreadArticles = await app.article_model.countUnreadInSite(site.id);
         addSiteToSidebar(parent, site);
     }
 }
@@ -94,6 +94,8 @@ function updateSiteSidebar(site) {
     const content = `${site.title}${getCountContent(site.numUnreadArticles)}`;
     const anchor = document.getElementById(`feed-${hash}`);
     anchor.replaceChildren();
+    let v = viewSiteFeeds.bind({site: site, onlyUnread: true});
+    anchor.addEventListener('click', v);
     anchor.innerHTML = content;
 }
 
@@ -119,7 +121,7 @@ async function viewSiteByHash(siteHash) {
     let site = null;
     let hash = parseInt(siteHash);
     if ( !isNaN(hash) ) {
-        site = await getSite(hash, true);
+        site = await app.site_model.get('hash', hash);
     }
     if ( site == null ) {
         const parent = document.getElementById(ARTICLE_LIST_ID);
@@ -140,9 +142,9 @@ async function emitFeedArticles(site, onlyUnread) {
     const parent = document.getElementById(ARTICLE_LIST_ID);
     updateTitles(site.title);
     if ( onlyUnread ) {
-        articles = await getSiteArticles(site.id, 0);
+        articles = await app.article_model.getInSite(site.id, 0);
     } else {
-        articles = await getSiteArticles(site.id);
+        articles = await app.article_model.getInSite(site.id);
     }
 
     parent.replaceChildren();
@@ -210,14 +212,14 @@ async function viewArticleByRouter(articleHash, historyState) {
         return;
     }
     if ( historyState == null ) {
-        let article = await getArticle(hash, true);
+        let article = await app.article_model.get(null, 'hash', hash);
         if ( article == null ) {
             noArticle();
         } else {
             emitArticle([article], 0);
         }
     } else {
-        let articles = await getArticles(historyState.idRanges);
+        let articles = await app.article_model.getInRanges(historyState.idRanges);
         let hashes = articles.map((article) => article.hash);
         let index = hashes.indexOf(hash);
         if ( articles.length == 0 || index == -1 ) {
@@ -253,13 +255,13 @@ async function emitArticle(articles, index, idRanges) {
     const article = articles[index];
     updateTitles(article.title);
     if ( article.isRead == 0 ) {
-        const site = await getSite(article.siteId);
+        const site = await app.site_model.get('id', article.siteId);
         if ( site == null ) {
             return;
         }
         article.isRead = 1;
-        await updateArticle(null, article);
-        site.numUnreadArticles = await countSiteUnreadArticles(article.siteId);
+        await app.article_model.update(null, article);
+        site.numUnreadArticles = await app.article_model.countUnreadInSite(article.siteId);
         updateSiteSidebar(site);
     }
     const parent = document.getElementById(SINGLE_ARTICLE_ID);
@@ -302,12 +304,12 @@ async function toggleRead(evt) {
         to = "Mark as read";
         add = 1;
     }
-    const site = await getSite(this.article.siteId);
+    const site = await app.site_model.get('id', this.article.siteId);
     if ( site == null ) {
         return;
     }
-    await updateArticle(null, this.article);
-    site.numUnreadArticles = await countSiteUnreadArticles(this.article.siteId);
+    await app.article_model.update(null, this.article);
+    site.numUnreadArticles = await app.article_model.countUnreadInSite(this.article.siteId);
     target.parentNode.firstChild.classList.toggle("unread");
     target.innerHTML = `<span>${to}</span>`;
     updateSiteSidebar(site);
@@ -329,7 +331,7 @@ async function showFeeds(evt) {
     }
     let unorderedList = document.createElement("ul");
     feedList.appendChild(unorderedList);
-    let store = getObjectStore(SITE_STORE_NAME, "readonly");
+    let store = app.db.getSiteStore("readonly");
     for ( url of feeds.urls ) {
         let feedObj = feeds.feedMap.get(url);
         if ( feedObj == 'undefined' || feedObj == null ) {
@@ -349,7 +351,7 @@ async function showFeeds(evt) {
 async function showFeed(store, url, feedObj) {
     let html = "<li class='card'>";
     feedObj.feedUrl = url;
-    let dbContainsSite = await hasSite(store, url);
+    let dbContainsSite = await app.site_model.exists(store, 'feedUrl', url);
     if ( feedObj.title != "" ) {
         html += `<header class='card-header'><h3>${feedObj.title}</h3></header>`;
     }
@@ -381,12 +383,17 @@ async function addFeed(evt) {
     const btn = evt.target;
     btn.textContent = "Adding...";
     btn.setAttribute('disabled', true);
-    let site = generateSiteFromFeedObject(this.feedObj);
-    let siteId = await getOrCreateSite(site);
-    if ( siteId == 0 ) {
+    let site = app.models.Site.generateObjectFromFeed(this.feedObj);
+    let existingSite = await app.site_model.get("hash", site.hash);
+    if ( existingSite === undefined || existingSite === null ) {
+        await app.site_model.add(site)
+    } else {
+        site = existingSite;
+    }
+    if ( !('id' in site) ) {
         return;
     }
-    let articleStore = getObjectStore(ARTICLE_STORE_NAME, 'readwrite');
+    let articleStore = app.db.getArticleStore('readwrite');
     let end = this.feedObj.articles.length - 1;
     /**
      * Add articles in reverse order. Most RSS feeds starts from the newest to the oldest.
@@ -394,12 +401,15 @@ async function addFeed(evt) {
      */
     let numArticles = 0;
     for ( let i = end; i >= 0; i-- ) {
-        this.feedObj.articles[i].siteId = siteId;
-        numArticles += await getOrCreateArticle(articleStore, this.feedObj.articles[i]);
-        addToIndex(this.feedObj.articles[i]);
+        this.feedObj.articles[i].siteId = site.id;
+        let exists = await app.article_model.exists(articleStore, 'hash', this.feedObj.articles[i].hash);
+        if ( !exists ) {
+            await app.article_model.add(articleStore, this.feedObj.articles[i]);
+            numArticles++;
+        }
+        app.search_model.add(this.feedObj.articles[i]);
     }
     site.numUnreadArticles = numArticles;
-    site.id = siteId;
     btn.textContent = "Added";
     addSiteToSidebar(null, site);
 }
@@ -407,7 +417,7 @@ async function addFeed(evt) {
 async function listOfFeeds() {
     updateTitles("All Feeds");
     const parent = document.getElementById(FEED_LIST_ID);
-    const sites = await getAllSites();
+    const sites = await app.site_model.getAll();
     parent.replaceChildren();
     if ( sites.length == 0 ) {
         const message = "<p>You've not subscribed to any feed.</p>";
@@ -440,8 +450,8 @@ async function editSite(evt) {
     const edit = async function(event) {
         event.preventDefault();
         site.title = form.querySelector('input').value;
-        updateSite(site);
-        site.numUnreadArticles = await countSiteUnreadArticles(site.id);
+        app.site_model.update(site);
+        site.numUnreadArticles = await app.article_model.countUnreadInSite(site.id);
         updateSiteSidebar(site);
         table_row.firstChild.textContent = site.title;
         form.classList.add("d-none");
@@ -475,9 +485,9 @@ async function deleteSiteAndArticles(evt) {
     const signal = controller.signal;
     const deleteAll = async function(event) {
         event.preventDefault();
-        let ids = await deleteSiteArticles(site.id);
-        await deleteSite(site.id);
-        deleteFromIndex(ids);
+        let ids = await app.article_model.deleteInSite(site.id);
+        await app.site_model.delete(site.id);
+        app.search_model.delete(ids);
         removeSiteFromSidebar(site);
         removeRow(table_row.parentNode, table_row);
         textView.textContent = previousStatement;
@@ -516,14 +526,14 @@ async function fillAutocomplete(evt) {
         autoCompleteBox.style.display = "none";
         return;
     }
-    let articleIds = search(text);
+    let articleIds = app.search_model.get(text);
     if ( articleIds.length == 0 ) {
         autoCompleteBox.style.display = "none";
         return;
     }
     let resultStrings = [];
     for ( id of articleIds ) {
-        let article = await getArticle(id);
+        let article = await app.article_model.get(null, 'id', id);
         let str = `<li><a href="/article/${article.hash}">${article.title}</a></li>`;
         resultStrings.push(str);
     }

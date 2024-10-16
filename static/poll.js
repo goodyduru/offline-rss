@@ -4,7 +4,7 @@ function doPolling() {
 }
 
 async function pollFeeds() {
-    const sites = await getSitesToPoll();
+    const sites = await app.site_model.getToPoll();
     if ( sites.length == 0 ) {
         return;
     }
@@ -34,27 +34,27 @@ async function pollFeed(siteData) {
 
     if ( feedResponse.text == "" ) {
         siteData.nextPoll = Date.now() + siteData.pollInterval;
-        await updateSite(siteData);
+        await app.site_model.update(siteData);
         return numArticles;
     }
     let hash = cyrb53(feedResponse.text);
     if ( hash != siteData.hash ) {
         let feedObj = await getFeedObject(feedResponse);
-        let site = generateSiteFromFeedObject(feedObj);
+        let site = app.models.Site.generateObjectFromFeed(feedObj);
         
         site.id = siteData.id;
         site.title = siteData.title;
-        let updated = await updateSite(site);
+        let updated = await app.site_model.update(site);
         if ( updated ) {
             Object.assign(siteData, site);
-            numArticles = await addNewArticlesToSite(feedObj.articles, siteData.id);
+            numArticles = await app.article_model.addToSite(feedObj.articles, siteData.id);
             for ( article of feedObj.articles ) {
                 if ( !article.hasOwnProperty('id') ) {
                     continue;
                 }
-                addToIndex(article);
+                app.search_model.add(article);
             }
-            siteData.numUnreadArticles = await countSiteUnreadArticles(site.id);
+            siteData.numUnreadArticles = await app.article_model.countUnreadInSite(site.id);
         }
 
     } else {
@@ -62,7 +62,7 @@ async function pollFeed(siteData) {
         siteData.lastModified = lastModified;
         siteData.pollInterval = 5*SECONDS_IN_MINUTES;
         siteData.nextPoll = Date.now() + siteData.pollInterval;
-        await updateSite(siteData)
+        await app.site_model.update(siteData)
     }
     return numArticles;
 }

@@ -46,14 +46,11 @@ function addEventListeners() {
 }
 
 async function init() {
-    await openDB();
+    await app.init();
     addEventListeners();
     doPolling();
     await sidebarSites();
     initRouter();
-    console.time("building index time");
-    await buildIndex();
-    console.timeEnd("building index time");
 }
 
-init();
+document.addEventListener("DOMContentLoaded", init, false);
