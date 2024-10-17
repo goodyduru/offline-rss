@@ -15,6 +15,7 @@ class App {
         await this.sidebarController.init();
         let _ = new app.Poll(); // Initialize polling
         this.appRouter = new app.Router(); // Initialsize router
+        _ = new app.controllers.Search(new app.views.Search(), this.searchModel, this.articleModel);
     }
 }
 
