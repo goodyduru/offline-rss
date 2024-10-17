@@ -536,12 +536,12 @@ app.models.Search = class Search extends app.Model {
      * Creates the index of all the articles in the db.
      */
     async create() {
-        let sites = await app.site_model.getAll();
+        let sites = await app.siteModel.getAll();
         for ( let site of sites ) {
             let done = false;
             let offset = 0;
             while ( !done ) {
-                let articles = await app.article_model.getInSite(site.id, null, offset);
+                let articles = await app.articleModel.getInSite(site.id, null, offset);
                 if ( articles == null || articles.length < this.per_page ) {
                     done = true;
                 }
@@ -558,7 +558,7 @@ app.models.Search = class Search extends app.Model {
      * @param {Array} ids Article ids to delete
      */
     delete(ids) {
-        for ( id of ids ) {
+        for ( let id of ids ) {
             this.radix.delete(id);
         }
     }

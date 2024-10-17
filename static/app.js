@@ -1,14 +1,18 @@
 class App {
     models = {};
+    views = {};
+    controllers = {};
     async init() {
         this.db = new app.DB();
         await this.db.open();
-        this.site_model = new app.models.Site();
-        this.article_model = new app.models.Article();
-        this.search_model = new app.models.Search();
+        this.siteModel = new app.models.Site();
+        this.articleModel = new app.models.Article();
+        this.searchModel = new app.models.Search();
+        this.sidebarController = new app.controllers.Sidebar(new app.views.Sidebar());
         console.time("building index time");
-        await this.search_model.create();
+        await this.searchModel.create();
         console.timeEnd("building index time");
+        await this.sidebarController.init();
     }
 }
 

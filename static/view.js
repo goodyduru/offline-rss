@@ -1,3 +1,82 @@
+app.View = class View {
+    htmlToNode(html) {
+        const template = document.createElement('template');
+        template.innerHTML = html;
+        return template.content.firstChild;
+    }
+};
+
+app.views.Sidebar = class SidebarView extends app.View {
+    constructor() {
+        super();
+        this.parent = document.getElementById("sidebar-feeds");
+    }
+
+    setContent(sites) {
+        this.sites = sites;
+    }
+
+    setClickHandler(handler) {
+        this.handler = handler;
+    }
+
+    renderCount(count) {
+        let countOutput;
+        if ( count > 0 ) {
+            countOutput = `<span>${count}</span>`;
+        } else {
+            countOutput = "";
+        }
+        return countOutput;
+    }
+
+    add(site) {
+        if ( this.parent.firstChild && this.parent.firstChild.tagName == "P" ) {
+            this.parent.replaceChildren();
+        }
+        const hash = cyrb53(site.feedUrl);
+        const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}${this.renderCount(site.numUnreadArticles)}</a></li>`;
+        const listItem = this.htmlToNode(html);
+        let h = this.handler.bind({site: site, onlyUnread: true});
+        listItem.firstChild.addEventListener('click', h);
+        this.parent.appendChild(listItem);
+    }
+
+    render() {
+        this.parent.replaceChildren();
+        if ( this.sites.length == 0 ) {
+            const message = "<p>You've not subscribed to any feed.</p>";
+            this.parent.insertAdjacentHTML("beforeend", message);
+            return;
+        }
+
+        for ( let site of this.sites ) {
+            this.add(site);
+        }
+    }
+
+    update(site) {
+        const hash = cyrb53(site.feedUrl);
+        const content = `${site.title}${this.renderCount(site.numUnreadArticles)}`;
+        const anchor = document.getElementById(`feed-${hash}`);
+        anchor.replaceChildren();
+        let v = this.handler.bind({site: site, onlyUnread: true});
+        anchor.addEventListener('click', v);
+        anchor.innerHTML = content;
+    }
+    
+    remove(site) {
+        const hash = cyrb53(site.feedUrl);
+        const anchor = document.getElementById(`feed-${hash}`);
+        const list = anchor.parentNode.parentNode;
+        list.removeChild(anchor.parentNode);
+        if ( list.childNodes.length == 0 ) {
+            list.insertAdjacentHTML("beforeend", "<p>You've not subscribed to any feed.</p>");
+        }
+    }
+
+};
+
 const ARTICLE_LIST_ID = "article-list";
 const SINGLE_ARTICLE_ID = "single-article"
 const FEED_LIST_ID = "feed-list"
@@ -38,13 +117,13 @@ async function viewUnread() {
     const parent = document.getElementById(ARTICLE_LIST_ID);
     updateTitles("Home");
     parent.replaceChildren();
-    const sites = await app.site_model.getAll();
+    const sites = await app.siteModel.getAll();
     if ( sites.length == 0 ) {
         let message = "<div class='empty'><p>Looks like you haven't subscribed to any feed 👀</p>";
         message += "<p><a class='btn' href='/add-feed'>Start here</a></p></div>";
         parent.insertAdjacentHTML("beforeend", message);
     } else {
-        let articles = await app.article_model.getUnread();
+        let articles = await app.articleModel.getUnread();
         if ( articles.length == 0 ) {
             const message = "<div class='empty'><p>You don't have any unread articles.</p></div>";
             parent.insertAdjacentHTML("beforeend", message);
@@ -56,56 +135,6 @@ async function viewUnread() {
         showOneMain(ARTICLE_LIST_ID);
     } else {
         window.scroll(0, 0);
-    }
-}
-
-async function sidebarSites() {
-    const parent = document.getElementById("sidebar-feeds");
-    const sites = await app.site_model.getAll();
-    parent.replaceChildren();
-    if ( sites.length == 0 ) {
-        const message = "<p>You've not subscribed to any feed.</p>";
-        parent.insertAdjacentHTML("beforeend", message);
-        return;
-    }
-    for ( site of sites ) {
-        site.numUnreadArticles = await app.article_model.countUnreadInSite(site.id);
-        addSiteToSidebar(parent, site);
-    }
-}
-
-function addSiteToSidebar(parent, site) {
-    if ( parent == null ) {
-        parent = document.getElementById("sidebar-feeds");
-        if ( parent.firstChild && parent.firstChild.tagName == "P" ) {
-            parent.replaceChildren();
-        }
-    }
-    const hash = cyrb53(site.feedUrl);
-    const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}${getCountContent(site.numUnreadArticles)}</a></li>`;
-    const listItem = htmlToNode(html);
-    let v = viewSiteFeeds.bind({site: site, onlyUnread: true});
-    listItem.firstChild.addEventListener('click', v);
-    parent.appendChild(listItem);
-}
-
-function updateSiteSidebar(site) {
-    const hash = cyrb53(site.feedUrl);
-    const content = `${site.title}${getCountContent(site.numUnreadArticles)}`;
-    const anchor = document.getElementById(`feed-${hash}`);
-    anchor.replaceChildren();
-    let v = viewSiteFeeds.bind({site: site, onlyUnread: true});
-    anchor.addEventListener('click', v);
-    anchor.innerHTML = content;
-}
-
-function removeSiteFromSidebar(site) {
-    const hash = cyrb53(site.feedUrl);
-    const anchor = document.getElementById(`feed-${hash}`);
-    const list = anchor.parentNode.parentNode;
-    list.removeChild(anchor.parentNode);
-    if ( list.childNodes.length == 0 ) {
-        list.insertAdjacentHTML("beforeend", "<p>You've not subscribed to any feed.</p>");
     }
 }
 
@@ -121,7 +150,7 @@ async function viewSiteByHash(siteHash) {
     let site = null;
     let hash = parseInt(siteHash);
     if ( !isNaN(hash) ) {
-        site = await app.site_model.get('hash', hash);
+        site = await app.siteModel.get('hash', hash);
     }
     if ( site == null ) {
         const parent = document.getElementById(ARTICLE_LIST_ID);
@@ -142,9 +171,9 @@ async function emitFeedArticles(site, onlyUnread) {
     const parent = document.getElementById(ARTICLE_LIST_ID);
     updateTitles(site.title);
     if ( onlyUnread ) {
-        articles = await app.article_model.getInSite(site.id, 0);
+        articles = await app.articleModel.getInSite(site.id, 0);
     } else {
-        articles = await app.article_model.getInSite(site.id);
+        articles = await app.articleModel.getInSite(site.id);
     }
 
     parent.replaceChildren();
@@ -212,14 +241,14 @@ async function viewArticleByRouter(articleHash, historyState) {
         return;
     }
     if ( historyState == null ) {
-        let article = await app.article_model.get(null, 'hash', hash);
+        let article = await app.articleModel.get(null, 'hash', hash);
         if ( article == null ) {
             noArticle();
         } else {
             emitArticle([article], 0);
         }
     } else {
-        let articles = await app.article_model.getInRanges(historyState.idRanges);
+        let articles = await app.articleModel.getInRanges(historyState.idRanges);
         let hashes = articles.map((article) => article.hash);
         let index = hashes.indexOf(hash);
         if ( articles.length == 0 || index == -1 ) {
@@ -255,14 +284,14 @@ async function emitArticle(articles, index, idRanges) {
     const article = articles[index];
     updateTitles(article.title);
     if ( article.isRead == 0 ) {
-        const site = await app.site_model.get('id', article.siteId);
+        const site = await app.siteModel.get('id', article.siteId);
         if ( site == null ) {
             return;
         }
         article.isRead = 1;
-        await app.article_model.update(null, article);
-        site.numUnreadArticles = await app.article_model.countUnreadInSite(article.siteId);
-        updateSiteSidebar(site);
+        await app.articleModel.update(null, article);
+        site.numUnreadArticles = await app.articleModel.countUnreadInSite(article.siteId);
+        app.sidebarController.update(site);
     }
     const parent = document.getElementById(SINGLE_ARTICLE_ID);
     const html = `<article>${article.content}</article>`;
@@ -304,15 +333,15 @@ async function toggleRead(evt) {
         to = "Mark as read";
         add = 1;
     }
-    const site = await app.site_model.get('id', this.article.siteId);
+    const site = await app.siteModel.get('id', this.article.siteId);
     if ( site == null ) {
         return;
     }
-    await app.article_model.update(null, this.article);
-    site.numUnreadArticles = await app.article_model.countUnreadInSite(this.article.siteId);
+    await app.articleModel.update(null, this.article);
+    site.numUnreadArticles = await app.articleModel.countUnreadInSite(this.article.siteId);
     target.parentNode.firstChild.classList.toggle("unread");
     target.innerHTML = `<span>${to}</span>`;
-    updateSiteSidebar(site);
+    app.sidebarController.update(site);
 }
 
 async function showFeeds(evt) {
@@ -351,7 +380,7 @@ async function showFeeds(evt) {
 async function showFeed(store, url, feedObj) {
     let html = "<li class='card'>";
     feedObj.feedUrl = url;
-    let dbContainsSite = await app.site_model.exists(store, 'feedUrl', url);
+    let dbContainsSite = await app.siteModel.exists(store, 'feedUrl', url);
     if ( feedObj.title != "" ) {
         html += `<header class='card-header'><h3>${feedObj.title}</h3></header>`;
     }
@@ -384,9 +413,9 @@ async function addFeed(evt) {
     btn.textContent = "Adding...";
     btn.setAttribute('disabled', true);
     let site = app.models.Site.generateObjectFromFeed(this.feedObj);
-    let existingSite = await app.site_model.get("hash", site.hash);
+    let existingSite = await app.siteModel.get("hash", site.hash);
     if ( existingSite === undefined || existingSite === null ) {
-        await app.site_model.add(site)
+        await app.siteModel.add(site)
     } else {
         site = existingSite;
     }
@@ -402,22 +431,22 @@ async function addFeed(evt) {
     let numArticles = 0;
     for ( let i = end; i >= 0; i-- ) {
         this.feedObj.articles[i].siteId = site.id;
-        let exists = await app.article_model.exists(articleStore, 'hash', this.feedObj.articles[i].hash);
+        let exists = await app.articleModel.exists(articleStore, 'hash', this.feedObj.articles[i].hash);
         if ( !exists ) {
-            await app.article_model.add(articleStore, this.feedObj.articles[i]);
+            await app.articleModel.add(articleStore, this.feedObj.articles[i]);
             numArticles++;
         }
-        app.search_model.add(this.feedObj.articles[i]);
+        app.searchModel.add(this.feedObj.articles[i]);
     }
     site.numUnreadArticles = numArticles;
     btn.textContent = "Added";
-    addSiteToSidebar(null, site);
+    app.sidebarController.add(site);
 }
 
 async function listOfFeeds() {
     updateTitles("All Feeds");
     const parent = document.getElementById(FEED_LIST_ID);
-    const sites = await app.site_model.getAll();
+    const sites = await app.siteModel.getAll();
     parent.replaceChildren();
     if ( sites.length == 0 ) {
         const message = "<p>You've not subscribed to any feed.</p>";
@@ -450,9 +479,9 @@ async function editSite(evt) {
     const edit = async function(event) {
         event.preventDefault();
         site.title = form.querySelector('input').value;
-        app.site_model.update(site);
-        site.numUnreadArticles = await app.article_model.countUnreadInSite(site.id);
-        updateSiteSidebar(site);
+        app.siteModel.update(site);
+        site.numUnreadArticles = await app.articleModel.countUnreadInSite(site.id);
+        app.sidebarController.update(site);
         table_row.firstChild.textContent = site.title;
         form.classList.add("d-none");
         parent.style.display = "none";
@@ -485,10 +514,10 @@ async function deleteSiteAndArticles(evt) {
     const signal = controller.signal;
     const deleteAll = async function(event) {
         event.preventDefault();
-        let ids = await app.article_model.deleteInSite(site.id);
-        await app.site_model.delete(site.id);
-        app.search_model.delete(ids);
-        removeSiteFromSidebar(site);
+        let ids = await app.articleModel.deleteInSite(site.id);
+        await app.siteModel.delete(site.id);
+        app.searchModel.delete(ids);
+        app.sidebarController.delete(site);
         removeRow(table_row.parentNode, table_row);
         textView.textContent = previousStatement;
         form.classList.add("d-none");
@@ -526,14 +555,14 @@ async function fillAutocomplete(evt) {
         autoCompleteBox.style.display = "none";
         return;
     }
-    let articleIds = app.search_model.get(text);
+    let articleIds = app.searchModel.get(text);
     if ( articleIds.length == 0 ) {
         autoCompleteBox.style.display = "none";
         return;
     }
     let resultStrings = [];
     for ( id of articleIds ) {
-        let article = await app.article_model.get(null, 'id', id);
+        let article = await app.articleModel.get(null, 'id', id);
         let str = `<li><a href="/article/${article.hash}">${article.title}</a></li>`;
         resultStrings.push(str);
     }

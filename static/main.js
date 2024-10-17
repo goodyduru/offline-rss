@@ -49,7 +49,6 @@ async function init() {
     await app.init();
     addEventListeners();
     doPolling();
-    await sidebarSites();
     initRouter();
 }
 

@@ -4,14 +4,14 @@ function doPolling() {
 }
 
 async function pollFeeds() {
-    const sites = await app.site_model.getToPoll();
+    const sites = await app.siteModel.getToPoll();
     if ( sites.length == 0 ) {
         return;
     }
     for ( site of sites ) {
         let result = await pollFeed(site);
         if ( result > 0 ) {
-            updateSiteSidebar(site);
+            app.sidebarController.update(site);
         }
     }
 }
@@ -34,7 +34,7 @@ async function pollFeed(siteData) {
 
     if ( feedResponse.text == "" ) {
         siteData.nextPoll = Date.now() + siteData.pollInterval;
-        await app.site_model.update(siteData);
+        await app.siteModel.update(siteData);
         return numArticles;
     }
     let hash = cyrb53(feedResponse.text);
@@ -44,17 +44,17 @@ async function pollFeed(siteData) {
         
         site.id = siteData.id;
         site.title = siteData.title;
-        let updated = await app.site_model.update(site);
+        let updated = await app.siteModel.update(site);
         if ( updated ) {
             Object.assign(siteData, site);
-            numArticles = await app.article_model.addToSite(feedObj.articles, siteData.id);
+            numArticles = await app.articleModel.addToSite(feedObj.articles, siteData.id);
             for ( article of feedObj.articles ) {
                 if ( !article.hasOwnProperty('id') ) {
                     continue;
                 }
-                app.search_model.add(article);
+                app.searchModel.add(article);
             }
-            siteData.numUnreadArticles = await app.article_model.countUnreadInSite(site.id);
+            siteData.numUnreadArticles = await app.articleModel.countUnreadInSite(site.id);
         }
 
     } else {
@@ -62,7 +62,7 @@ async function pollFeed(siteData) {
         siteData.lastModified = lastModified;
         siteData.pollInterval = 5*SECONDS_IN_MINUTES;
         siteData.nextPoll = Date.now() + siteData.pollInterval;
-        await app.site_model.update(siteData)
+        await app.siteModel.update(siteData)
     }
     return numArticles;
 }
