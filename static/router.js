@@ -1,76 +1,74 @@
-routes = {};
-templates = {};
-
-function route(path, template) {
-    if ( typeof template === 'function' ) {
-        routes[path] = template;
-    } else if ( typeof template === 'string' ) {
-        routes[path] = templates[template];
+app.Router = class Router {
+    constructor() {
+        this.routes = {};
+        this.templates = {};
+        let historyRouter = this.router.bind(this);
+        this.setup();
+        window.onpopstate = (event) => {
+            historyRouter(event.state);
+        };
+        this.router();
     }
-}
 
-function template(name, templateFunction) {
-    templates[name] = templateFunction; 
-}
-
-function setupRoutes() {
-    template('home', function() {
-        viewUnread();
-    });
-
-    template('add-feed', function() {
-        updateTitles("Add New Feed");
-        document.getElementById("feed-options").replaceChildren();
-        showOneMain("add-feed")
-    });
-
-    template('feed-list', function() {
-        listOfFeeds();
-    });
-
-    template('feed', function(hash) {
-        viewSiteByHash(hash);
-    });
-
-    template('article', function(hash, historyState) {
-        viewArticleByRouter(hash, historyState);
-    })
-
-    route('', 'home');
-    route('add-feed', 'add-feed');
-    route('feed-list', 'feed-list');
-    route('feed', 'feed');
-    route('article', 'article');
-}
-
-function setupHistory() {
-    window.onpopstate = (event) => {
-        router(event.state);
+    route(path, template) {
+        if ( typeof template === 'function' ) {
+            this.routes[path] = template;
+        } else if ( typeof template === 'string' ) {
+            this.routes[path] = this.templates[template];
+        }
     }
-}
 
-function resolveRouter(route) {
-    try {
-        return routes[route];
-    } catch(e) {
-        throw new Error(`Route ${route} not found`);
+    template(name, templateFunction) {
+        this.templates[name] = templateFunction; 
     }
-}
 
-function router(historyState) {
-    let url = window.location.pathname || '/';
-    let urls = url.split('/');
-    if ( urls.length == 2 || urls[2] == '' ) {
-        let route = resolveRouter(urls[1]);
-        route();
-    } else if ( urls.length > 2 ) {
-        let route = resolveRouter(urls[1]);
-        route(urls[2], historyState);
+    setup() {
+        this.template('home', function() {
+            viewUnread();
+        });
+    
+        this.template('add-feed', function() {
+            updateTitles("Add New Feed");
+            document.getElementById("feed-options").replaceChildren();
+            showOneMain("add-feed")
+        });
+    
+        this.template('feed-list', function() {
+            listOfFeeds();
+        });
+    
+        this.template('feed', function(hash) {
+            viewSiteByHash(hash);
+        });
+    
+        this.template('article', function(hash, historyState) {
+            viewArticleByRouter(hash, historyState);
+        })
+    
+        this.route('', 'home');
+        this.route('add-feed', 'add-feed');
+        this.route('feed-list', 'feed-list');
+        this.route('feed', 'feed');
+        this.route('article', 'article');
     }
-}
 
-function initRouter() {
-    setupRoutes();
-    setupHistory();
-    router();
-}
+    resolveRouter(route) {
+        try {
+            return this.routes[route];
+        } catch(e) {
+            throw new Error(`Route ${route} not found`);
+        }
+    }
+
+    router(historyState) {
+        let url = window.location.pathname || '/';
+        let urls = url.split('/');
+        if ( urls.length == 2 || urls[2] == '' ) {
+            let route = this.resolveRouter(urls[1]);
+            route();
+        } else if ( urls.length > 2 ) {
+            let route = this.resolveRouter(urls[1]);
+            route(urls[2], historyState);
+        }
+    }
+};

@@ -4,7 +4,7 @@ app.Controller = class Controller {
             window.history.pushState(null, "", href);
         }
     }
-}
+};
 
 app.controllers.Sidebar = class SidebarController extends app.Controller {
     constructor(sidebarView) {
@@ -38,4 +38,4 @@ app.controllers.Sidebar = class SidebarController extends app.Controller {
     delete(site) {
         this.sidebarView.remove(site);
     }
-}
+};

@@ -13,6 +13,8 @@ class App {
         await this.searchModel.create();
         console.timeEnd("building index time");
         await this.sidebarController.init();
+        let _ = new app.Poll(); // Initialize polling
+        this.appRouter = new app.Router(); // Initialsize router
     }
 }
 
