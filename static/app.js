@@ -8,14 +8,17 @@ class App {
         this.siteModel = new app.models.Site();
         this.articleModel = new app.models.Article();
         this.searchModel = new app.models.Search();
-        this.sidebarController = new app.controllers.Sidebar(new app.views.Sidebar());
+        this.sidebarController = new app.controllers.Sidebar(new app.views.Sidebar(), this.siteModel, this.articleModel);
         console.time("building index time");
         await this.searchModel.create();
         console.timeEnd("building index time");
         await this.sidebarController.init();
         let _ = new app.Poll(); // Initialize polling
-        this.appRouter = new app.Router(); // Initialsize router
+        this.appRouter = new app.Router(); // Initialize router
         _ = new app.controllers.Search(new app.views.Search(), this.searchModel, this.articleModel);
+
+        _ = new app.controllers.AddFeed(new app.views.AddFeed(), this.siteModel, this.articleModel, this.searchModel);
+
     }
 }
 

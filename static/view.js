@@ -117,6 +117,51 @@ app.views.Search = class SearchView {
     }
 };
 
+app.views.AddFeed = class AddFeedView {
+    setAddFeedHandler(addFeedHandler) {
+        this.addFeedHandler = addFeedHandler;
+    }
+    bindClickHandler(handleFeedUrl) {
+        const addFeedBtn = document.getElementById("add-feed-btn");
+        const feedList = document.getElementById("feed-options");
+        const loader = document.getElementById("network-loader");
+        const feedUrlInput = document.getElementById("feed-url");
+
+        addFeedBtn.addEventListener("click", async (evt) => {
+            evt.preventDefault();
+            loader.style.display = "flex";
+            const result = await handleFeedUrl(feedUrlInput.value);
+            feedList.replaceChildren();
+            if ( result.length == 0 ) {
+                loader.style.display = "none";
+                const message = "<div class='empty'><p>No feed in the given url.</p></div>";
+                feedList.insertAdjacentHTML("beforeend", message);
+                return;
+            }
+            let unorderedList = document.createElement("ul");
+            feedList.appendChild(unorderedList);
+
+            for ( let obj of result ) {
+                unorderedList.insertAdjacentHTML('beforeend', obj.html);
+                let f = this.addFeedHandler(obj.feedObj);
+                let btn = document.getElementById(`${obj.feedObj.hash}`);
+                if ( btn != null ) {
+                    btn.addEventListener('click', f);
+                }
+            }
+            loader.style.display = "none";
+        });
+    }
+
+    updateBtnText(btn, text) {
+        btn.textContent = text;
+    }
+
+    disableBtn(btn) {
+        btn.setAttribute('disabled', true);
+    }
+};
+
 
 const ARTICLE_LIST_ID = "article-list";
 const SINGLE_ARTICLE_ID = "single-article"
@@ -126,16 +171,6 @@ function htmlToNode(html) {
     const template = document.createElement('template');
     template.innerHTML = html;
     return template.content.firstChild;
-}
-
-function getCountContent(unreadArticles) {
-    let count;
-    if ( unreadArticles > 0 ) {
-        count = `<span>${unreadArticles}</span>`;
-    } else {
-        count = "";
-    }
-    return count;
 }
 
 function showOneMain(id) {
@@ -383,105 +418,6 @@ async function toggleRead(evt) {
     target.parentNode.firstChild.classList.toggle("unread");
     target.innerHTML = `<span>${to}</span>`;
     app.sidebarController.update(site);
-}
-
-async function showFeeds(evt) {
-    evt.preventDefault();
-    const feedUrl = document.getElementById("feed-url").value;
-    const loader = document.getElementById("network-loader");
-    loader.style.display = "flex";
-    const feeds = await findFeeds(feedUrl);
-    const feedList = document.getElementById("feed-options");
-    feedList.replaceChildren();
-    if ( feeds == null || feeds.urls.length == 0 ) {
-        loader.style.display = "none";
-        const message = "<div class='empty'><p>No feed in the given url.</p></div>";
-        feedList.insertAdjacentHTML("beforeend", message);
-        return;
-    }
-    let unorderedList = document.createElement("ul");
-    feedList.appendChild(unorderedList);
-    let store = app.db.getSiteStore("readonly");
-    for ( url of feeds.urls ) {
-        let feedObj = feeds.feedMap.get(url);
-        if ( feedObj == 'undefined' || feedObj == null ) {
-            continue;
-        }
-        html = await showFeed(store, url, feedObj);
-        unorderedList.insertAdjacentHTML('beforeend', html);
-        let myAddFeed = addFeed.bind({feedObj: feedObj});
-        let btn = document.getElementById(`${feedObj.hash}`);
-        if ( btn != null ) {
-            btn.addEventListener('click', myAddFeed);
-        }
-    }
-    loader.style.display = "none";
-}
-
-async function showFeed(store, url, feedObj) {
-    let html = "<li class='card'>";
-    feedObj.feedUrl = url;
-    let dbContainsSite = await app.siteModel.exists(store, 'feedUrl', url);
-    if ( feedObj.title != "" ) {
-        html += `<header class='card-header'><h3>${feedObj.title}</h3></header>`;
-    }
-    html += `<section class='card-body'><p>Visit the site link: <a href="${feedObj.siteUrl}">${feedObj.siteUrl}</a></p>`;
-    if ( feedObj.description != "" ) {
-        html += `<div>${feedObj.description}</div>`;
-    }
-    html += "<ul>";
-    const minSize = Math.min(3, feedObj.articles.length);
-    for ( i = 0; i < minSize; i++ ) {
-        html += "<li>";
-        if ( feedObj.articles[i].title != "" ) {
-            html += `<strong>${feedObj.articles[i].title}</strong>`;
-        }
-        html += "</li>";
-    }
-    html += "</ul></section><footer class='card-footer'>";
-    if ( dbContainsSite ) {
-        html += '<p class="btn btn-disabled">Added</p>';
-    } else {
-        html += `<form><button id="${feedObj.hash}" class="btn">Add</button></form>`;
-    }
-    html += "</footer>";
-    return html;
-}
-
-async function addFeed(evt) {
-    evt.preventDefault();
-    const btn = evt.target;
-    btn.textContent = "Adding...";
-    btn.setAttribute('disabled', true);
-    let site = app.models.Site.generateObjectFromFeed(this.feedObj);
-    let existingSite = await app.siteModel.get("hash", site.hash);
-    if ( existingSite === undefined || existingSite === null ) {
-        await app.siteModel.add(site)
-    } else {
-        site = existingSite;
-    }
-    if ( !('id' in site) ) {
-        return;
-    }
-    let articleStore = app.db.getArticleStore('readwrite');
-    let end = this.feedObj.articles.length - 1;
-    /**
-     * Add articles in reverse order. Most RSS feeds starts from the newest to the oldest.
-     * We want to add from the oldest to the newest.
-     */
-    let numArticles = 0;
-    for ( let i = end; i >= 0; i-- ) {
-        this.feedObj.articles[i].siteId = site.id;
-        let exists = await app.articleModel.exists(articleStore, 'hash', this.feedObj.articles[i].hash);
-        if ( !exists ) {
-            await app.articleModel.add(articleStore, this.feedObj.articles[i]);
-            numArticles++;
-        }
-        app.searchModel.add(this.feedObj.articles[i]);
-    }
-    site.numUnreadArticles = numArticles;
-    btn.textContent = "Added";
-    app.sidebarController.add(site);
 }
 
 async function listOfFeeds() {

@@ -4,7 +4,6 @@ function addEventListeners() {
     const barsBtn = document.querySelector('.bars');
     const wrapper = document.querySelector('body > .wrapper');
     const links = document.querySelectorAll("aside a");
-    const addFeedBtn = document.getElementById("add-feed-btn");
 
     pinBtn.addEventListener('click', () => {
         wrapper.classList.add('sidebar-open');
@@ -27,8 +26,6 @@ function addEventListeners() {
             }
         });
     });
-
-    addFeedBtn.addEventListener("click", (evt) => showFeeds(evt));
 }
 
 async function init() {
