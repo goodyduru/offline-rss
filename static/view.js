@@ -64,7 +64,7 @@ app.views.Sidebar = class SidebarView extends app.View {
         const content = `${site.title}${this.renderCount(site.numUnreadArticles)}`;
         const anchor = document.getElementById(`feed-${hash}`);
         anchor.replaceChildren();
-        let v = this.handler.bind({site: site, onlyUnread: true});
+        let v = this.clickHandler.bind({site: site, onlyUnread: true, outputFeedFunc: this.outputFeedFunc});
         anchor.addEventListener('click', v);
         anchor.innerHTML = content;
     }
@@ -121,7 +121,35 @@ app.views.Search = class SearchView {
     }
 };
 
-app.views.AddFeed = class AddFeedView {
+app.PageView = class PageView extends app.View {
+    renderTitle() {
+        document.title = this.title;
+        const h1 = document.querySelector(".wrapper > section > h1");
+        h1.textContent = this.title;
+    }
+
+    go() {
+        this.render(...arguments);
+        document.querySelectorAll("main").forEach((content) => {
+            if (content.getAttribute("id") == this.id) {
+                content.classList.remove("d-none");
+                return;
+            }
+            content.classList.add("d-none");
+        });
+    }
+
+    render() {
+        this.renderTitle();
+    }
+}
+
+app.views.AddFeed = class AddFeedView extends app.PageView {
+    constructor() {
+        super();
+        this.id = "add-feed";
+        this.title = "Add New Feed";
+    }
     setAddFeedFunc(addFeedFunc) {
         this.addFeedFunc = addFeedFunc;
     }
@@ -171,6 +199,126 @@ app.views.AddFeed = class AddFeedView {
         }
     }
 };
+
+app.views.ListFeeds = class ListFeedsView extends app.PageView {
+    constructor() {
+        super();
+        this.id = "feed-list";
+        this.title = "All Feeds"
+        this.parent = document.getElementById(this.id);
+    }
+
+    setSiteFunctions(editSiteFunc, deleteSiteFunc) {
+        this.editSiteFunc = editSiteFunc;
+        this.deleteSiteFunc = deleteSiteFunc;
+    }
+
+    async editAction(event) {
+        event.preventDefault();
+        let form = document.getElementById("rename-form");
+        let formParent = form.parentNode;
+        this.site.title = form.querySelector('input').value;
+        await this.editSiteFunc(this.site);
+        this.table_row.firstChild.textContent = this.site.title;
+        form.classList.add("d-none");
+        formParent.style.display = "none";
+        this.controller.abort();
+    };
+
+    cancelAction(event) {
+        event.preventDefault();
+        let form;
+        if ( typeof this.previousStatement != "undefined" ) {
+            form = document.getElementById("delete-form");
+            form.querySelector('p').textContent = this.previousStatement;
+        } else {
+            form = document.getElementById("rename-form");
+        }
+        let formParent = form.parentNode;
+        form.classList.add("d-none");
+        formParent.style.display = "none";
+        this.controller.abort();
+    }
+
+    editSiteHandler(event) {
+        event.preventDefault();
+        const form = document.getElementById("rename-form");
+        const table_row = event.target.parentNode.parentNode;
+        const formParent = form.parentNode;
+        const controller = new AbortController();
+        const signal = controller.signal;
+        form.querySelector('input').value = this.site.title;
+        form.querySelectorAll('span')[1].textContent = this.site.feedUrl;
+        form.classList.remove("d-none");
+        const btns = form.querySelectorAll("button");
+        let edit = this.obj.editAction.bind({site: this.site, editSiteFunc: this.obj.editSiteFunc, 
+            controller: controller, table_row: table_row});
+        let cancel = this.obj.cancelAction.bind({controller: controller});
+        btns[0].addEventListener('click', edit, {signal});
+        btns[1].addEventListener('click', cancel, {once: true});
+        formParent.style.display = "flex";
+    }
+
+    async deleteAction(event) {
+        event.preventDefault();
+        await this.deleteSiteFunc(this.site);
+        let form = document.getElementById("delete-form");
+        let formParent = form.parentNode;
+        let tbody = this.table_row.parentNode;
+        tbody.removeChild(this.table_row);
+        if ( tbody.childNodes.length == 0 ) {
+            let feedListSection = tbody.parentNode.parentNode;
+            feedListSection.replaceChildren();
+            feedListSection.insertAdjacentHTML("beforeend", "<p>You've not subscribed to any feed.</p>");
+        }
+        form.querySelector('p').textContent = this.previousStatement;
+        form.classList.add("d-none");
+        formParent.style.display = "none";
+        this.controller.abort();
+    }
+
+    deleteSiteHandler(evt) {
+        evt.preventDefault();
+        const table_row = evt.target.parentNode.parentNode;
+        const form = document.getElementById("delete-form");
+        const parent = form.parentNode;
+        let textView = form.querySelector('p');
+        let previousStatement = textView.textContent;
+        const controller = new AbortController();
+        const signal = controller.signal;
+        textView.textContent = `Are you sure you want to delete ${this.site.title} and all its articles?`;
+        form.classList.remove("d-none");
+        const btns = form.querySelectorAll("button");
+        let deleteFunc = this.obj.deleteAction.bind({site: this.site, deleteSiteFunc: this.obj.deleteSiteFunc,
+            controller: controller, table_row: table_row, previousStatement: previousStatement});
+        let cancel = this.obj.cancelAction.bind({controller: controller, previousStatement: previousStatement});
+        btns[0].addEventListener('click', deleteFunc, {signal});
+        btns[1].addEventListener('click', cancel, {once: true});
+        parent.style.display = "flex";
+    }
+    
+    render(sites) {
+        super.render();
+        this.parent.replaceChildren();
+        if ( sites.length == 0 ) {
+            const message = "<p>You've not subscribed to any feed.</p>";
+            parent.insertAdjacentHTML("beforeend", message);
+            return;
+        }
+        const table = htmlToNode("<table><thead><tr><th scope='col'>Feed Name</th><th></th><th></th></tr></thead><tbody></tbody></table>");
+        const body = table.lastChild;
+        for ( let site of sites ) {
+            let html = `<tr><td>${site.title}</td><td><a href="#" class="btn">Rename</a></td><td><a href="#" class="btn btn-danger">Delete</a></td></tr>`;
+            let e = this.editSiteHandler.bind({obj: this, site: site});
+            let d = this.deleteSiteHandler.bind({obj: this, site: site});
+            let row = htmlToNode(html);
+            row.children[1].firstChild.addEventListener('click', e);
+            row.lastChild.firstChild.addEventListener('click', d);
+            body.append(row);
+        }
+        this.parent.append(table);
+    }
+}
 
 
 const ARTICLE_LIST_ID = "article-list";
@@ -428,109 +576,4 @@ async function toggleRead(evt) {
     target.parentNode.firstChild.classList.toggle("unread");
     target.innerHTML = `<span>${to}</span>`;
     app.sidebarController.update(site);
-}
-
-async function listOfFeeds() {
-    updateTitles("All Feeds");
-    const parent = document.getElementById(FEED_LIST_ID);
-    const sites = await app.siteModel.getAll();
-    parent.replaceChildren();
-    if ( sites.length == 0 ) {
-        const message = "<p>You've not subscribed to any feed.</p>";
-        parent.insertAdjacentHTML("beforeend", message);
-        return;
-    }
-    const table = htmlToNode("<table><thead><tr><th scope='col'>Feed Name</th><th></th><th></th></tr></thead><tbody></tbody></table>");
-    const body = table.lastChild;
-    for ( site of sites ) {
-        let html = `<tr><td>${site.title}</td><td><a href="#" class="btn">Rename</a></td><td><a href="#" class="btn btn-danger">Delete</a></td></tr>`;
-        let e = editSite.bind({site: site});
-        let d = deleteSiteAndArticles.bind({site: site});
-        let row = htmlToNode(html);
-        row.children[1].firstChild.addEventListener('click', e);
-        row.lastChild.firstChild.addEventListener('click', d);
-        body.append(row);
-    }
-    parent.append(table);
-    showOneMain(FEED_LIST_ID);
-}
-
-async function editSite(evt) {
-    evt.preventDefault();
-    const form = document.getElementById("rename-form");
-    const table_row = evt.target.parentNode.parentNode;
-    const parent = form.parentNode;
-    const site = this.site;
-    const controller = new AbortController();
-    const signal = controller.signal;
-    const edit = async function(event) {
-        event.preventDefault();
-        site.title = form.querySelector('input').value;
-        app.siteModel.update(site);
-        site.numUnreadArticles = await app.articleModel.countUnreadInSite(site.id);
-        app.sidebarController.update(site);
-        table_row.firstChild.textContent = site.title;
-        form.classList.add("d-none");
-        parent.style.display = "none";
-        controller.abort();
-    };
-    const cancel = function(event) {
-        event.preventDefault();
-        form.classList.add("d-none");
-        parent.style.display = "none";
-        controller.abort()
-    };
-    form.querySelector('input').value = this.site.title;
-    form.querySelectorAll('span')[1].textContent = this.site.feedUrl;
-    form.classList.remove("d-none");
-    const btns = form.querySelectorAll("button");
-    btns[0].addEventListener('click', edit, {signal});
-    btns[1].addEventListener('click', cancel, {once: true});
-    parent.style.display = "flex";
-}
-
-async function deleteSiteAndArticles(evt) {
-    evt.preventDefault();
-    const table_row = evt.target.parentNode.parentNode;
-    const form = document.getElementById("delete-form");
-    const parent = form.parentNode;
-    let textView = form.querySelector('p');
-    let previousStatement = textView.textContent;
-    const site = this.site;
-    const controller = new AbortController();
-    const signal = controller.signal;
-    const deleteAll = async function(event) {
-        event.preventDefault();
-        let ids = await app.articleModel.deleteInSite(site.id);
-        await app.siteModel.delete(site.id);
-        app.searchModel.delete(ids);
-        app.sidebarController.delete(site);
-        removeRow(table_row.parentNode, table_row);
-        textView.textContent = previousStatement;
-        form.classList.add("d-none");
-        parent.style.display = "none";
-        controller.abort();
-    };
-    const cancel = function(event) {
-        event.preventDefault();
-        textView.textContent = previousStatement;
-        form.classList.add("d-none");
-        parent.style.display = "none";
-        controller.abort()
-    };
-    textView.textContent = `Are you sure you want to delete ${site.title} and all its articles?`;
-    form.classList.remove("d-none");
-    const btns = form.querySelectorAll("button");
-    btns[0].addEventListener('click', deleteAll, {signal});
-    btns[1].addEventListener('click', cancel, {once: true});
-    parent.style.display = "flex";
-}
-
-function removeRow(tbody, tr) {
-    tbody.removeChild(tr);
-    if ( tbody.childNodes.length == 0 ) {
-        let feedListSection = tbody.parentNode.parentNode;
-        feedListSection.replaceChildren();
-        feedListSection.insertAdjacentHTML("beforeend", "<p>You've not subscribed to any feed.</p>");
-    }
 }

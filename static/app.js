@@ -14,11 +14,11 @@ class App {
         console.timeEnd("building index time");
         await this.sidebarController.init();
         let _ = new app.Poll(); // Initialize polling
-        this.appRouter = new app.Router(); // Initialize router
         _ = new app.controllers.Search(new app.views.Search(), this.searchModel, this.articleModel);
 
-        _ = new app.controllers.AddFeed(new app.views.AddFeed(), this.siteModel, this.articleModel, this.searchModel);
-
+        this.addFeedController = new app.controllers.AddFeed(new app.views.AddFeed(), this.siteModel, this.articleModel, this.searchModel);
+        this.listFeedsController = new app.controllers.ListFeeds(new app.views.ListFeeds(), this.siteModel, this.articleModel, this.searchModel);
+        this.appRouter = new app.Router(); // Initialize router
     }
 }
 

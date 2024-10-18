@@ -28,13 +28,11 @@ app.Router = class Router {
         });
     
         this.template('add-feed', function() {
-            updateTitles("Add New Feed");
-            document.getElementById("feed-options").replaceChildren();
-            showOneMain("add-feed")
+            app.addFeedController.go();
         });
     
         this.template('feed-list', function() {
-            listOfFeeds();
+            app.listFeedsController.go();
         });
     
         this.template('feed', function(hash) {
