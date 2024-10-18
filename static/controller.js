@@ -22,13 +22,13 @@ app.controllers.Sidebar = class SidebarController extends app.Controller {
             site.numUnreadArticles = await this.articleModel.countUnreadInSite(site.id);
         }
         this.view.setContent(sites);
-        this.view.setClickHandler(this.clickHandler);
+        this.view.setOutputFeedFunc(this.outputFeed);
         this.view.render(sites);
     }
 
-    clickHandler(evt) {
-        super.setHistory(evt.currentTarget.href);
-        emitFeedArticles(this.site, this.onlyUnread);
+    outputFeed(site, onlyUnread, href) {
+        super.setHistory(href);
+        emitFeedArticles(site, onlyUnread);
     }
 
     add(site) {
@@ -77,8 +77,8 @@ app.controllers.AddFeed = class AddFeedController extends app.Controller {
         this.articleModel = articleModel;
         this.searchModel = searchModel;
         let handleFunc = this.handleFeedUrl.bind(this);
-        let handleAddFeed = this.addFeedHandler.bind(this);
-        view.setAddFeedHandler(handleAddFeed);
+        let addFeedFunc = this.addFeedObj.bind(this);
+        view.setAddFeedFunc(addFeedFunc);
         view.bindClickHandler(handleFunc);
     }
 
@@ -130,42 +130,35 @@ app.controllers.AddFeed = class AddFeedController extends app.Controller {
         return html;
     }
 
-    addFeedHandler(feedObj) {
-        let obj = this;
-        return async function(evt) {
-            evt.preventDefault();
-            const btn = evt.target;
-            obj.view.updateBtnText(btn, "Adding...");
-            obj.view.disableBtn(btn);
-            let site = app.models.Site.generateObjectFromFeed(feedObj);
-            let existingSite = await obj.siteModel.get("hash", site.hash);
-            if ( existingSite === undefined || existingSite === null ) {
-                await obj.siteModel.add(site)
-            } else {
-                site = existingSite;
-            }
-            if ( !('id' in site) ) {
-                return;
-            }
-            let articleStore = app.db.getArticleStore('readwrite');
-            let end = feedObj.articles.length - 1;
-            /**
-             * Add articles in reverse order. Most RSS feeds starts from the newest to the oldest.
-             * We want to add from the oldest to the newest.
-             */
-            let numArticles = 0;
-            for ( let i = end; i >= 0; i-- ) {
-                feedObj.articles[i].siteId = site.id;
-                let exists = await obj.articleModel.exists(articleStore, 'hash', feedObj.articles[i].hash);
-                if ( !exists ) {
-                    await obj.articleModel.add(articleStore, feedObj.articles[i]);
-                    numArticles++;
-                }
-                obj.searchModel.add(feedObj.articles[i]);
-            }
-            site.numUnreadArticles = numArticles;
-            obj.view.updateBtnText(btn, "Added");
-            app.sidebarController.add(site);
+    async addFeedObj(feedObj) {
+        let site = app.models.Site.generateObjectFromFeed(feedObj);
+        let existingSite = await this.siteModel.get("hash", site.hash);
+        if ( existingSite === undefined || existingSite === null ) {
+            await this.siteModel.add(site)
+        } else {
+            site = existingSite;
         }
+        if ( !('id' in site) ) {
+            return false;
+        }
+        let articleStore = app.db.getArticleStore('readwrite');
+        let end = feedObj.articles.length - 1;
+        /**
+         * Add articles in reverse order. Most RSS feeds starts from the newest to the oldest.
+         * We want to add from the oldest to the newest.
+         */
+        let numArticles = 0;
+        for ( let i = end; i >= 0; i-- ) {
+            feedObj.articles[i].siteId = site.id;
+            let exists = await this.articleModel.exists(articleStore, 'hash', feedObj.articles[i].hash);
+            if ( !exists ) {
+                await this.articleModel.add(articleStore, feedObj.articles[i]);
+                numArticles++;
+            }
+            this.searchModel.add(feedObj.articles[i]);
+        }
+        site.numUnreadArticles = numArticles;
+        app.sidebarController.add(site);
+        return true;
     }
 }

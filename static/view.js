@@ -16,8 +16,12 @@ app.views.Sidebar = class SidebarView extends app.View {
         this.sites = sites;
     }
 
-    setClickHandler(handler) {
-        this.handler = handler;
+    setOutputFeedFunc(outputFeedFunc) {
+        this.outputFeedFunc = outputFeedFunc;
+    }
+
+    clickHandler(evt) {
+        this.outputFeedFunc(this.site, this.onlyUnread, evt.currentTarget.href);
     }
 
     renderCount(count) {
@@ -37,7 +41,7 @@ app.views.Sidebar = class SidebarView extends app.View {
         const hash = cyrb53(site.feedUrl);
         const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}${this.renderCount(site.numUnreadArticles)}</a></li>`;
         const listItem = this.htmlToNode(html);
-        let h = this.handler.bind({site: site, onlyUnread: true});
+        let h = this.clickHandler.bind({site: site, onlyUnread: true, outputFeedFunc: this.outputFeedFunc});
         listItem.firstChild.addEventListener('click', h);
         this.parent.appendChild(listItem);
     }
@@ -118,8 +122,8 @@ app.views.Search = class SearchView {
 };
 
 app.views.AddFeed = class AddFeedView {
-    setAddFeedHandler(addFeedHandler) {
-        this.addFeedHandler = addFeedHandler;
+    setAddFeedFunc(addFeedFunc) {
+        this.addFeedFunc = addFeedFunc;
     }
     bindClickHandler(handleFeedUrl) {
         const addFeedBtn = document.getElementById("add-feed-btn");
@@ -143,7 +147,7 @@ app.views.AddFeed = class AddFeedView {
 
             for ( let obj of result ) {
                 unorderedList.insertAdjacentHTML('beforeend', obj.html);
-                let f = this.addFeedHandler(obj.feedObj);
+                let f = this.addFeedHandler.bind({addFeedFunc: this.addFeedFunc, feedObj: obj.feedObj});
                 let btn = document.getElementById(`${obj.feedObj.hash}`);
                 if ( btn != null ) {
                     btn.addEventListener('click', f);
@@ -153,12 +157,18 @@ app.views.AddFeed = class AddFeedView {
         });
     }
 
-    updateBtnText(btn, text) {
-        btn.textContent = text;
-    }
-
-    disableBtn(btn) {
+    async addFeedHandler(evt) {
+        evt.preventDefault();
+        const btn = evt.target;
+        btn.textContent = "Adding...";
         btn.setAttribute('disabled', true);
+        const added = await this.addFeedFunc(this.feedObj);
+        if ( added ) {
+            btn.textContent = "Added";
+        } else {
+            btn.textContent = "Add";
+            btn.removeAttribute('disabled');
+        }
     }
 };
 
