@@ -134,8 +134,7 @@ app.PageView = class PageView extends app.View {
         h1.textContent = this.title;
     }
 
-    go() {
-        this.render(...arguments);
+    show() {
         document.querySelectorAll("main").forEach((content) => {
             if (content.getAttribute("id") == this.id) {
                 content.classList.remove("d-none");
@@ -145,8 +144,17 @@ app.PageView = class PageView extends app.View {
         });
     }
 
+    go() {
+        this.render(...arguments);
+    }
+
     render() {
         this.renderTitle();
+        if ( this.parent.classList.contains("d-none") ) {
+            this.show();
+        } else {
+            window.scroll(0, 0);
+        }
     }
 }
 
@@ -155,6 +163,7 @@ app.views.AddFeed = class AddFeedView extends app.PageView {
         super();
         this.id = "add-feed";
         this.title = "Add New Feed";
+        this.parent = document.getElementById(this.id);
     }
     setAddFeedFunc(addFeedFunc) {
         this.addFeedFunc = addFeedFunc;
@@ -325,6 +334,87 @@ app.views.ListFeeds = class ListFeedsView extends app.PageView {
         }
         this.parent.append(table);
     }
+};
+
+app.views.Article = class ArticleView extends app.PageView {
+    constructor() {
+        super();
+        this.id = "single-article";
+        this.title = "Article Not Found";
+        this.parent = document.getElementById(this.id);
+        this.articles = null;
+        this.index = null;
+        this.idRanges = null;
+    }
+
+    setUpdateHandler(updateHandler) {
+        this.updateHandler = updateHandler;
+    }
+
+    go(articles, index, idRanges) {
+        if ( typeof articles == 'undefined' || articles.length == 0 || index == -1 ) {
+            this.articles = null;
+            this.index = null;
+            this.idRanges = null;
+            this.title = "Article Not Found";
+        } else {
+            this.articles = articles;
+            this.index = index;
+            this.idRanges = idRanges;
+            this.title = articles[index].title;
+        }
+        super.go();
+    }
+
+    render() {
+        super.render();
+        this.parent.replaceChildren();
+        if ( this.articles == null ) {
+            this.renderNoArticle();
+        } else {
+            this.renderArticle();
+        }
+    }
+
+    renderNoArticle() {
+        const message = "<p>This article does not exist.</p>";
+        this.parent.insertAdjacentHTML("beforeend", message);
+    }
+
+    renderArticle() {
+        const article = this.articles[this.index];
+        const html = `<article>${article.content}</article>`;
+        const articleLink = `<section><a href="${article.link}" class="btn" target="_blank">Read More</a></section>`
+        this.parent.insertAdjacentHTML("beforeend", html);
+        this.parent.insertAdjacentHTML("beforeend", articleLink);
+        const nav = document.createElement("section");
+        if ( this.index > 0 ) {
+            let prev = this.htmlToNode(`<a href="/article/${this.articles[this.index-1].hash}">Prev</a>`);
+            prev.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.clickHandler(this.index-1)
+            });
+            nav.appendChild(prev);
+        }
+
+        if ( this.index < (this.articles.length - 1) ) {
+            let next = this.htmlToNode(`<a href="/article/${this.articles[this.index+1].hash}">Next</a>`);
+            next.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.clickHandler(this.index+1);
+            });
+            nav.appendChild(next);
+        }
+        this.parent.appendChild(nav);
+    }
+
+    clickHandler(index) {
+        this.index = index;
+        let url = `/article/${this.articles[index].hash}`;
+        this.updateHandler(this.articles, index, this.idRanges, url);
+        this.title = this.articles[index].title;
+        this.render();
+    }
 }
 
 
@@ -475,91 +565,9 @@ function listArticles(articles) {
     return list;
 }
 
-async function viewArticleByRouter(articleHash, historyState) {
-    let hash = parseInt(articleHash);
-    if ( isNaN(hash) ) {
-        noArticle();
-        return;
-    }
-    if ( historyState == null ) {
-        let article = await app.articleModel.get(null, 'hash', hash);
-        if ( article == null ) {
-            noArticle();
-        } else {
-            emitArticle([article], 0);
-        }
-    } else {
-        let articles = await app.articleModel.getInRanges(historyState.idRanges);
-        let hashes = articles.map((article) => article.hash);
-        let index = hashes.indexOf(hash);
-        if ( articles.length == 0 || index == -1 ) {
-            noArticle();
-            return;
-        } else {
-            emitArticle(articles, index, historyState.idRanges);
-        }
-    }
-}
-
-function noArticle() {
-    const parent = document.getElementById(SINGLE_ARTICLE_ID);
-    parent.replaceChildren();
-    const message = "<p>This article does not exist.</p>";
-    parent.insertAdjacentHTML("beforeend", message);
-    if ( parent.classList.contains("d-none") ) {
-        showOneMain(SINGLE_ARTICLE_ID);
-    } else {
-        window.scroll(0, 0);
-    }
-}
-
 function viewArticle(evt) {
     evt.preventDefault();
-    if ( window.location.href != evt.currentTarget.href ) {
-        window.history.pushState({index: this.index, idRanges: this.idRanges}, "", evt.currentTarget.href);
-    }
-    emitArticle(this.articles, this.index, this.idRanges);
-}
-
-async function emitArticle(articles, index, idRanges) {
-    const article = articles[index];
-    updateTitles(article.title);
-    if ( article.isRead == 0 ) {
-        const site = await app.siteModel.get('id', article.siteId);
-        if ( site == null ) {
-            return;
-        }
-        article.isRead = 1;
-        await app.articleModel.update(null, article);
-        site.numUnreadArticles = await app.articleModel.countUnreadInSite(article.siteId);
-        app.sidebarController.update(site);
-    }
-    const parent = document.getElementById(SINGLE_ARTICLE_ID);
-    const html = `<article>${article.content}</article>`;
-    const articleLink = `<section><a href="${article.link}" class="btn" target="_blank">Read More</a></section>`
-    parent.replaceChildren();
-    parent.insertAdjacentHTML("beforeend", html);
-    parent.insertAdjacentHTML("beforeend", articleLink);
-    const nav = document.createElement("section");
-    if ( index > 0 ) {
-        let prev = htmlToNode(`<a href="/article/${articles[index-1].hash}">Prev</a>`);
-        let v = viewArticle.bind({articles: articles, index: index-1, idRanges: idRanges});
-        prev.addEventListener('click', v);
-        nav.appendChild(prev);
-    }
-
-    if ( index < (articles.length - 1) ) {
-        let next = htmlToNode(`<a href="/article/${articles[index+1].hash}">Next</a>`);
-        let v = viewArticle.bind({articles: articles, index: index+1, idRanges: idRanges});
-        next.addEventListener('click', v);
-        nav.appendChild(next);
-    }
-    parent.appendChild(nav);
-    if ( parent.classList.contains("d-none") ) {
-        showOneMain(SINGLE_ARTICLE_ID);
-    } else {
-        window.scroll(0, 0);
-    }
+    app.singleArticleController.go(this.articles, this.index, this.idRanges, evt.currentTarget.href);
 }
 
 async function toggleRead(evt) {

@@ -40,7 +40,7 @@ app.Router = class Router {
         });
     
         this.template('article', function(hash, historyState) {
-            viewArticleByRouter(hash, historyState);
+            app.singleArticleController.go(hash, historyState);
         })
     
         this.route('', 'home');
