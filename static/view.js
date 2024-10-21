@@ -72,6 +72,7 @@ app.views.Sidebar = class SidebarView extends app.View {
             e.preventDefault();
             this.clickHandler(site, true, e.currentTarget.href);
         });
+        anchor.setAttribute('href', site.hash);
         anchor.innerHTML = content;
     }
     
