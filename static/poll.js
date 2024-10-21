@@ -46,6 +46,7 @@ app.Poll = class Poll {
             
             site.id = siteData.id;
             site.title = siteData.title;
+            site.feedUrl = siteData.feedUrl;
             let updated = await app.siteModel.update(site);
             if ( updated ) {
                 Object.assign(siteData, site);
