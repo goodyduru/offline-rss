@@ -22,8 +22,8 @@ function addEventListeners() {
             evt.preventDefault();
             if ( window.location.href != evt.target.href ) {
                 window.history.pushState(null, "", evt.target.href);
-                app.appRouter.router();
             }
+            app.appRouter.router();
         });
     });
 }

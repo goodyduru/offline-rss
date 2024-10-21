@@ -19,6 +19,7 @@ class App {
         this.addFeedController = new app.controllers.AddFeed(new app.views.AddFeed(), this.siteModel, this.articleModel, this.searchModel);
         this.listFeedsController = new app.controllers.ListFeeds(new app.views.ListFeeds(), this.siteModel, this.articleModel, this.searchModel);
         this.singleArticleController = new app.controllers.Article(new app.views.Article(), this.siteModel, this.articleModel);
+        this.homeController = new app.controllers.Home(new app.views.Home(), this.siteModel, this.articleModel);
         this.appRouter = new app.Router(); // Initialize router
     }
 }

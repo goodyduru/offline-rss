@@ -417,6 +417,87 @@ app.views.Article = class ArticleView extends app.PageView {
     }
 }
 
+app.ListView = class ListView extends app.PageView {
+    constructor() {
+        super();
+        this.id = "article-list";
+        this.parent = document.getElementById(this.id);
+        this.articles = null;
+    }
+
+    bindToggle(toggleFunc) {
+        this.toggleFunc = toggleFunc;
+    }
+
+    bindVisit(visitFunc) {
+        this.visitFunc = visitFunc;
+    }
+
+    go(articles, onlyUnread, title) {
+        this.articles = articles;
+        this.onlyUnread = onlyUnread;
+        this.title = title;
+        super.go();
+    }
+
+    list() {
+        const list = document.createElement("ul");
+        for ( let i = 0; i < this.articles.length; i++ ) {
+            let article = this.articles[i]
+            const anchorClass = ( article.isRead == 1 ) ? "" : "unread";
+            const toggle = ( article.isRead == 1 ) ? "Mark as unread" : "Mark as read";
+            const html = `<li><a href="/article/${article.hash}" class="${anchorClass}">${article.title}</a><a href="#"><span>${toggle}</span></a></li>`;
+            const listItem = this.htmlToNode(html);
+            listItem.firstChild.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.visitFunc(i, e.currentTarget.href);
+            });
+            listItem.lastChild.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggle(i, e.currentTarget)
+            });
+            list.appendChild(listItem);
+        }
+        return list;
+    }
+
+    async toggle(index, target) {
+        const article = this.articles[index];
+        article.isRead = (article.isRead == 1) ? 0 : 1;
+        let to;
+        if ( article.isRead == 1 ) {
+            to = "Mark as unread";
+        } else {
+            to = "Mark as read";
+        }
+        let isToggle = this.toggleFunc(index);
+        if ( !isToggle ) {
+            return;
+        }
+        target.parentNode.firstChild.classList.toggle("unread");
+        target.innerHTML = `<span>${to}</span>`;
+    }
+}
+
+app.views.Home = class HomeView extends app.ListView {
+    render() {
+        super.render();
+        this.parent.replaceChildren();
+        if ( this.articles == null ) {
+            let message = "<div class='empty'><p>Looks like you haven't subscribed to any feed 👀</p>";
+            message += "<p><a class='btn' href='/add-feed'>Start here</a></p></div>";
+            this.parent.insertAdjacentHTML("beforeend", message);
+        } else {
+            if ( this.articles.length == 0 ) {
+                const message = "<div class='empty'><p>You don't have any unread articles.</p></div>";
+                this.parent.insertAdjacentHTML("beforeend", message);
+            } else {
+                this.parent.appendChild(this.list());
+            }
+        }
+    }
+}
+
 
 const ARTICLE_LIST_ID = "article-list";
 const SINGLE_ARTICLE_ID = "single-article"
@@ -442,31 +523,6 @@ function updateTitles(title) {
     document.title = title;
     const h1 = document.querySelector(".wrapper > section > h1");
     h1.textContent = title;
-}
-
-async function viewUnread() {
-    const parent = document.getElementById(ARTICLE_LIST_ID);
-    updateTitles("Home");
-    parent.replaceChildren();
-    const sites = await app.siteModel.getAll();
-    if ( sites.length == 0 ) {
-        let message = "<div class='empty'><p>Looks like you haven't subscribed to any feed 👀</p>";
-        message += "<p><a class='btn' href='/add-feed'>Start here</a></p></div>";
-        parent.insertAdjacentHTML("beforeend", message);
-    } else {
-        let articles = await app.articleModel.getUnread();
-        if ( articles.length == 0 ) {
-            const message = "<div class='empty'><p>You don't have any unread articles.</p></div>";
-            parent.insertAdjacentHTML("beforeend", message);
-        } else {
-            parent.appendChild(listArticles(articles));
-        }
-    }
-    if ( parent.classList.contains("d-none") ) {
-        showOneMain(ARTICLE_LIST_ID);
-    } else {
-        window.scroll(0, 0);
-    }
 }
 
 async function viewSiteFeeds(evt) {

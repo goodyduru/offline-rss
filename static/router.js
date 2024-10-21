@@ -24,7 +24,7 @@ app.Router = class Router {
 
     setup() {
         this.template('home', function() {
-            viewUnread();
+            app.homeController.go();
         });
     
         this.template('add-feed', function() {
