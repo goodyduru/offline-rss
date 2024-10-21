@@ -20,8 +20,8 @@ app.views.Sidebar = class SidebarView extends app.View {
         this.outputFeedFunc = outputFeedFunc;
     }
 
-    clickHandler(evt) {
-        this.outputFeedFunc(this.site, this.onlyUnread, evt.currentTarget.href);
+    clickHandler(site, onlyUnread, url) {
+        this.outputFeedFunc(site, onlyUnread, url);
     }
 
     renderCount(count) {
@@ -34,15 +34,19 @@ app.views.Sidebar = class SidebarView extends app.View {
         return countOutput;
     }
 
-    add(site) {
+    add(site, isNew) {
         if ( this.parent.firstChild && this.parent.firstChild.tagName == "P" ) {
             this.parent.replaceChildren();
         }
         const hash = cyrb53(site.feedUrl);
         const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}${this.renderCount(site.numUnreadArticles)}</a></li>`;
         const listItem = this.htmlToNode(html);
-        let h = this.clickHandler.bind({site: site, onlyUnread: true, outputFeedFunc: this.outputFeedFunc});
-        listItem.firstChild.addEventListener('click', h);
+        if ( isNew ) {
+            listItem.firstChild.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.clickHandler(site, true, e.currentTarget.href);
+            });
+        }
         this.parent.appendChild(listItem);
     }
 
@@ -55,7 +59,7 @@ app.views.Sidebar = class SidebarView extends app.View {
         }
 
         for ( let site of this.sites ) {
-            this.add(site);
+            this.add(site, false);
         }
     }
 
@@ -64,8 +68,10 @@ app.views.Sidebar = class SidebarView extends app.View {
         const content = `${site.title}${this.renderCount(site.numUnreadArticles)}`;
         const anchor = document.getElementById(`feed-${hash}`);
         anchor.replaceChildren();
-        let v = this.clickHandler.bind({site: site, onlyUnread: true, outputFeedFunc: this.outputFeedFunc});
-        anchor.addEventListener('click', v);
+        anchor.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.clickHandler(site, true, e.currentTarget.href);
+        });
         anchor.innerHTML = content;
     }
     
@@ -175,22 +181,22 @@ app.views.AddFeed = class AddFeedView extends app.PageView {
 
             for ( let obj of result ) {
                 unorderedList.insertAdjacentHTML('beforeend', obj.html);
-                let f = this.addFeedHandler.bind({addFeedFunc: this.addFeedFunc, feedObj: obj.feedObj});
                 let btn = document.getElementById(`${obj.feedObj.hash}`);
                 if ( btn != null ) {
-                    btn.addEventListener('click', f);
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.addFeed(obj.feedObj, btn);
+                    });
                 }
             }
             loader.style.display = "none";
         });
     }
 
-    async addFeedHandler(evt) {
-        evt.preventDefault();
-        const btn = evt.target;
+    async addFeed(feedObj, btn) {
         btn.textContent = "Adding...";
         btn.setAttribute('disabled', true);
-        const added = await this.addFeedFunc(this.feedObj);
+        const added = await this.addFeedFunc(feedObj);
         if ( added ) {
             btn.textContent = "Added";
         } else {
@@ -206,6 +212,8 @@ app.views.ListFeeds = class ListFeedsView extends app.PageView {
         this.id = "feed-list";
         this.title = "All Feeds"
         this.parent = document.getElementById(this.id);
+        this.editForm = document.getElementById("rename-form");
+        this.deleteForm = document.getElementById("delete-form");
     }
 
     setSiteFunctions(editSiteFunc, deleteSiteFunc) {
@@ -213,87 +221,82 @@ app.views.ListFeeds = class ListFeedsView extends app.PageView {
         this.deleteSiteFunc = deleteSiteFunc;
     }
 
-    async editAction(event) {
-        event.preventDefault();
-        let form = document.getElementById("rename-form");
-        let formParent = form.parentNode;
-        this.site.title = form.querySelector('input').value;
-        await this.editSiteFunc(this.site);
-        this.table_row.firstChild.textContent = this.site.title;
-        form.classList.add("d-none");
+    async editAction(site, table_row, controller) {
+        let formParent = this.editForm.parentNode;
+        site.title = this.editForm.querySelector('input').value;
+        await this.editSiteFunc(site);
+        table_row.firstChild.textContent = site.title;
+        this.editForm.classList.add("d-none");
         formParent.style.display = "none";
-        this.controller.abort();
+        controller.abort();
     };
 
-    cancelAction(event) {
-        event.preventDefault();
+    cancelAction(controller, previousStatement) {
         let form;
         if ( typeof this.previousStatement != "undefined" ) {
-            form = document.getElementById("delete-form");
-            form.querySelector('p').textContent = this.previousStatement;
+            form = this.deleteForm;
+            form.querySelector('p').textContent = previousStatement;
         } else {
-            form = document.getElementById("rename-form");
+            form = this.editForm
         }
         let formParent = form.parentNode;
         form.classList.add("d-none");
         formParent.style.display = "none";
-        this.controller.abort();
+        controller.abort();
     }
 
-    editSiteHandler(event) {
-        event.preventDefault();
-        const form = document.getElementById("rename-form");
-        const table_row = event.target.parentNode.parentNode;
-        const formParent = form.parentNode;
+    editSite(site, table_row) {
+        const formParent = this.editForm.parentNode;
         const controller = new AbortController();
         const signal = controller.signal;
-        form.querySelector('input').value = this.site.title;
-        form.querySelectorAll('span')[1].textContent = this.site.feedUrl;
-        form.classList.remove("d-none");
-        const btns = form.querySelectorAll("button");
-        let edit = this.obj.editAction.bind({site: this.site, editSiteFunc: this.obj.editSiteFunc, 
-            controller: controller, table_row: table_row});
-        let cancel = this.obj.cancelAction.bind({controller: controller});
-        btns[0].addEventListener('click', edit, {signal});
-        btns[1].addEventListener('click', cancel, {once: true});
+        this.editForm.querySelector('input').value = site.title;
+        this.editForm.querySelectorAll('span')[1].textContent = site.feedUrl;
+        this.editForm.classList.remove("d-none");
+        const btns = this.editForm.querySelectorAll("button");
+        btns[0].addEventListener('click', (e) => {
+            e.preventDefault();
+            this.editAction(site, table_row, controller);
+        }, {signal});
+        btns[1].addEventListener('click', (e) => {
+            e.preventDefault();
+            this.cancelAction(controller);
+        }, {once: true});
         formParent.style.display = "flex";
     }
 
-    async deleteAction(event) {
-        event.preventDefault();
-        await this.deleteSiteFunc(this.site);
-        let form = document.getElementById("delete-form");
-        let formParent = form.parentNode;
-        let tbody = this.table_row.parentNode;
-        tbody.removeChild(this.table_row);
+    async deleteAction(site, table_row, controller, previousStatement) {
+        await this.deleteSiteFunc(site);
+        let formParent = this.deleteForm.parentNode;
+        let tbody = table_row.parentNode;
+        tbody.removeChild(table_row);
         if ( tbody.childNodes.length == 0 ) {
             let feedListSection = tbody.parentNode.parentNode;
             feedListSection.replaceChildren();
             feedListSection.insertAdjacentHTML("beforeend", "<p>You've not subscribed to any feed.</p>");
         }
-        form.querySelector('p').textContent = this.previousStatement;
-        form.classList.add("d-none");
+        this.deleteForm.querySelector('p').textContent = previousStatement;
+        this.deleteForm.classList.add("d-none");
         formParent.style.display = "none";
-        this.controller.abort();
+        controller.abort();
     }
 
-    deleteSiteHandler(evt) {
-        evt.preventDefault();
-        const table_row = evt.target.parentNode.parentNode;
-        const form = document.getElementById("delete-form");
-        const parent = form.parentNode;
-        let textView = form.querySelector('p');
+    deleteSite(site, table_row) {
+        const parent = this.deleteForm.parentNode;
+        let textView = this.deleteForm.querySelector('p');
         let previousStatement = textView.textContent;
         const controller = new AbortController();
         const signal = controller.signal;
-        textView.textContent = `Are you sure you want to delete ${this.site.title} and all its articles?`;
-        form.classList.remove("d-none");
-        const btns = form.querySelectorAll("button");
-        let deleteFunc = this.obj.deleteAction.bind({site: this.site, deleteSiteFunc: this.obj.deleteSiteFunc,
-            controller: controller, table_row: table_row, previousStatement: previousStatement});
-        let cancel = this.obj.cancelAction.bind({controller: controller, previousStatement: previousStatement});
-        btns[0].addEventListener('click', deleteFunc, {signal});
-        btns[1].addEventListener('click', cancel, {once: true});
+        textView.textContent = `Are you sure you want to delete ${site.title} and all its articles?`;
+        this.deleteForm.classList.remove("d-none");
+        const btns = this.deleteForm.querySelectorAll("button");
+        btns[0].addEventListener('click', (e) => {
+            e.preventDefault();
+            this.deleteAction(site, table_row, controller, previousStatement);
+        }, {signal});
+        btns[1].addEventListener('click', (e) => {
+            e.preventDefault();
+            this.cancelAction(controller, previousStatement);
+        }, {once: true});
         parent.style.display = "flex";
     }
     
@@ -309,11 +312,15 @@ app.views.ListFeeds = class ListFeedsView extends app.PageView {
         const body = table.lastChild;
         for ( let site of sites ) {
             let html = `<tr><td>${site.title}</td><td><a href="#" class="btn">Rename</a></td><td><a href="#" class="btn btn-danger">Delete</a></td></tr>`;
-            let e = this.editSiteHandler.bind({obj: this, site: site});
-            let d = this.deleteSiteHandler.bind({obj: this, site: site});
             let row = htmlToNode(html);
-            row.children[1].firstChild.addEventListener('click', e);
-            row.lastChild.firstChild.addEventListener('click', d);
+            row.children[1].firstChild.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.editSite(site, row);
+            });
+            row.lastChild.firstChild.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.deleteSite(site, row)
+            });
             body.append(row);
         }
         this.parent.append(table);
