@@ -28,7 +28,7 @@ app.controllers.Sidebar = class SidebarController extends app.Controller {
 
     outputFeed(site, onlyUnread, href) {
         super.setHistory(href, null);
-        emitFeedArticles(site, onlyUnread);
+        app.listArticlesController.go(site, onlyUnread);
     }
 
     add(site) {
@@ -232,13 +232,13 @@ app.controllers.Article = class ArticleController extends app.PageController {
 
     go() {
         if ( arguments.length == 2 ) {
-            this.goByRouter(arguments[0], arguments[1]);
+            this.goByHistory(arguments[0], arguments[1]);
         } else {
             this.goByClick(arguments[0], arguments[1], arguments[2], arguments[3]);
         }
     }
 
-    async goByRouter(articleHash, historyState) {
+    async goByHistory(articleHash, historyState) {
         let hash = parseInt(articleHash);
         if ( isNaN(hash) ) {
             this.view.go();
@@ -334,5 +334,45 @@ app.controllers.Home = class HomeController extends app.ListController {
             this.articles = await this.articleModel.getUnread();
         }
         super.go();
+    }
+}
+
+app.controllers.ListArticles = class ListArticles extends app.ListController {
+    constructor(view, siteModel, articleModel) {
+        super(view, siteModel, articleModel);
+        this.site = null;
+        let v = this.visitAll.bind(this);
+        this.view.bindViewAll(v);
+    }
+
+    async go() {
+        if ( arguments.length == 1 ) {
+            await this.getSite(...arguments);
+            this.onlyUnread = true;
+        } else {
+            this.site = arguments[0];
+            this.onlyUnread = arguments[1];
+        }
+        this.view.setSite(this.site);
+        if ( this.site != null ) {
+            this.title = this.site.title;
+            if ( this.onlyUnread ) {
+                this.articles = await this.articleModel.getInSite(this.site.id, 0);
+            } else {
+                this.articles = await this.articleModel.getInSite(this.site.id);
+            }
+        }
+        super.go();
+    }
+
+    async getSite(siteHash) {
+        let hash = parseInt(siteHash);
+        if ( !isNaN(hash) ) {
+            this.site = await this.siteModel.get('hash', hash);
+        }
+    }
+
+    visitAll() {
+        this.go(this.site, false);
     }
 }

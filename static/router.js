@@ -36,7 +36,7 @@ app.Router = class Router {
         });
     
         this.template('feed', function(hash) {
-            viewSiteByHash(hash);
+            app.listArticlesController.go(hash);
         });
     
         this.template('article', function(hash, historyState) {

@@ -135,13 +135,17 @@ app.PageView = class PageView extends app.View {
     }
 
     show() {
-        document.querySelectorAll("main").forEach((content) => {
-            if (content.getAttribute("id") == this.id) {
-                content.classList.remove("d-none");
-                return;
-            }
-            content.classList.add("d-none");
-        });
+        if ( this.parent.classList.contains("d-none") ) {
+            document.querySelectorAll("main").forEach((content) => {
+                if (content.getAttribute("id") == this.id) {
+                    content.classList.remove("d-none");
+                    return;
+                }
+                content.classList.add("d-none");
+            });
+        } else {
+            window.scroll(0, 0);
+        }
     }
 
     go() {
@@ -150,11 +154,6 @@ app.PageView = class PageView extends app.View {
 
     render() {
         this.renderTitle();
-        if ( this.parent.classList.contains("d-none") ) {
-            this.show();
-        } else {
-            window.scroll(0, 0);
-        }
     }
 }
 
@@ -212,6 +211,11 @@ app.views.AddFeed = class AddFeedView extends app.PageView {
             btn.textContent = "Add";
             btn.removeAttribute('disabled');
         }
+    }
+
+    render() {
+        super.render();
+        super.show();
     }
 };
 
@@ -317,11 +321,11 @@ app.views.ListFeeds = class ListFeedsView extends app.PageView {
             parent.insertAdjacentHTML("beforeend", message);
             return;
         }
-        const table = htmlToNode("<table><thead><tr><th scope='col'>Feed Name</th><th></th><th></th></tr></thead><tbody></tbody></table>");
+        const table = this.htmlToNode("<table><thead><tr><th scope='col'>Feed Name</th><th></th><th></th></tr></thead><tbody></tbody></table>");
         const body = table.lastChild;
         for ( let site of sites ) {
             let html = `<tr><td>${site.title}</td><td><a href="#" class="btn">Rename</a></td><td><a href="#" class="btn btn-danger">Delete</a></td></tr>`;
-            let row = htmlToNode(html);
+            let row = this.htmlToNode(html);
             row.children[1].firstChild.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.editSite(site, row);
@@ -333,6 +337,7 @@ app.views.ListFeeds = class ListFeedsView extends app.PageView {
             body.append(row);
         }
         this.parent.append(table);
+        super.show();
     }
 };
 
@@ -374,6 +379,7 @@ app.views.Article = class ArticleView extends app.PageView {
         } else {
             this.renderArticle();
         }
+        super.show();
     }
 
     renderNoArticle() {
@@ -495,156 +501,48 @@ app.views.Home = class HomeView extends app.ListView {
                 this.parent.appendChild(this.list());
             }
         }
+        super.show();
     }
 }
 
+app.views.ListArticles = class ListArticlesView extends app.ListView {
+    constructor() {
+        super();
+        this.site = null;
+    }
 
-const ARTICLE_LIST_ID = "article-list";
-const SINGLE_ARTICLE_ID = "single-article"
-const FEED_LIST_ID = "feed-list"
+    setSite(site) {
+        this.site = site;
+    }
 
-function htmlToNode(html) {
-    const template = document.createElement('template');
-    template.innerHTML = html;
-    return template.content.firstChild;
-}
+    bindViewAll(viewAllFunc) {
+        this.viewAllFunc = viewAllFunc;
+    }
 
-function showOneMain(id) {
-    document.querySelectorAll("main").forEach((content) => {
-        if (content.getAttribute("id") == id) {
-            content.classList.remove("d-none");
+    render() {
+        super.render();
+        this.parent.replaceChildren();
+        if ( this.site == null ) {
+            const message = "<p>This feed does not exist.</p>";
+            this.parent.insertAdjacentHTML("beforeend", message);
             return;
         }
-        content.classList.add("d-none");
-    });
-}
-
-function updateTitles(title) {
-    document.title = title;
-    const h1 = document.querySelector(".wrapper > section > h1");
-    h1.textContent = title;
-}
-
-async function viewSiteFeeds(evt) {
-    evt.preventDefault();
-    if ( window.location.href != evt.currentTarget.href ) {
-        window.history.pushState(null, "", evt.currentTarget.href);
-    }
-    emitFeedArticles(this.site, this.onlyUnread);
-}
-
-async function viewSiteByHash(siteHash) {
-    let site = null;
-    let hash = parseInt(siteHash);
-    if ( !isNaN(hash) ) {
-        site = await app.siteModel.get('hash', hash);
-    }
-    if ( site == null ) {
-        const parent = document.getElementById(ARTICLE_LIST_ID);
-        parent.replaceChildren();
-        const message = "<p>This feed does not exist.</p>";
-        parent.insertAdjacentHTML("beforeend", message);
-        if ( parent.classList.contains("d-none") ) {
-            showOneMain(ARTICLE_LIST_ID);
+        if ( this.articles.length == 0 ) {
+            if ( this.onlyUnread ) {
+                const divNode = this.htmlToNode(`<div class="empty"><p>There are no unread articles in this feed.</p><p><a class="btn" href="/feed/${this.site.hash}">View Read Articles</a></p></div>`);
+                const btn = divNode.lastChild.firstChild;
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.viewAllFunc();
+                });
+                this.parent.append(divNode);
+            } else {
+                const message = "<div class='empty'><p>There are no articles in this feed.</p></div>";
+                this.parent.insertAdjacentHTML("beforeend", message);
+            }
         } else {
-            window.scroll(0, 0);
+            this.parent.appendChild(this.list());
         }
-    } else {
-        emitFeedArticles(site, true);
+        super.show();
     }
-}
-
-async function emitFeedArticles(site, onlyUnread) {
-    const parent = document.getElementById(ARTICLE_LIST_ID);
-    updateTitles(site.title);
-    if ( onlyUnread ) {
-        articles = await app.articleModel.getInSite(site.id, 0);
-    } else {
-        articles = await app.articleModel.getInSite(site.id);
-    }
-
-    parent.replaceChildren();
-    if ( articles.length == 0 ) {
-        if ( onlyUnread ) {
-            const divNode = htmlToNode(`<div class="empty"><p>There are no unread articles in this feed.</p><p><a class="btn" href="/feed/${site.hash}">View Read Articles</a></p></div>`);
-            const btn = divNode.lastChild.firstChild;
-            let v = viewSiteFeeds.bind({site: site, onlyUnread: false});
-            btn.addEventListener('click', v);
-            parent.append(divNode);
-        } else {
-            const message = "<div class='empty'><p>There are no articles in this feed.</p></div>";
-            parent.insertAdjacentHTML("beforeend", message);
-        }
-    } else {
-        parent.appendChild(listArticles(articles));
-    }
-    if ( parent.classList.contains("d-none") ) {
-        showOneMain(ARTICLE_LIST_ID);
-    } else {
-        window.scroll(0, 0);
-    }
-}
-
-function createArticleIdRanges(articles) {
-    const articleIds = articles.map((article) => article.id);
-    let start = articleIds[articleIds.length - 1];
-    let end = start;
-    let result = [];
-    for ( i = articleIds.length - 2; i >= 0; i-- ) {
-        if ( articleIds[i]-end == 1 ) {
-            end = articleIds[i];
-        } else {
-            result.push(end, start);
-            start = articleIds[i];
-            end = start;
-        }
-    }
-    result.push(end, start);
-    return result.reverse();
-}
-
-function listArticles(articles) {
-    const list = document.createElement("ul");
-    const idRanges = createArticleIdRanges(articles);
-    for ( let i = 0; i < articles.length; i++ ) {
-        let article = articles[i]
-        const anchorClass = ( article.isRead == 1 ) ? "" : "unread";
-        const toggle = ( article.isRead == 1 ) ? "Mark as unread" : "Mark as read";
-        const html = `<li><a href="/article/${article.hash}" class="${anchorClass}">${article.title}</a><a href="#"><span>${toggle}</span></a></li>`;
-        const listItem = htmlToNode(html);
-        let v = viewArticle.bind({articles: articles, index: i, idRanges: idRanges});
-        let t = toggleRead.bind({article: article});
-        listItem.firstChild.addEventListener('click', v);
-        listItem.lastChild.addEventListener('click', t);
-        list.appendChild(listItem);
-    }
-    return list;
-}
-
-function viewArticle(evt) {
-    evt.preventDefault();
-    app.singleArticleController.go(this.articles, this.index, this.idRanges, evt.currentTarget.href);
-}
-
-async function toggleRead(evt) {
-    evt.preventDefault();
-    const target = evt.currentTarget;
-    this.article.isRead = (this.article.isRead == 1) ? 0 : 1;
-    let add, to;
-    if ( this.article.isRead == 1 ) {
-        to = "Mark as unread";
-        add = -1;
-    } else {
-        to = "Mark as read";
-        add = 1;
-    }
-    const site = await app.siteModel.get('id', this.article.siteId);
-    if ( site == null ) {
-        return;
-    }
-    await app.articleModel.update(null, this.article);
-    site.numUnreadArticles = await app.articleModel.countUnreadInSite(this.article.siteId);
-    target.parentNode.firstChild.classList.toggle("unread");
-    target.innerHTML = `<span>${to}</span>`;
-    app.sidebarController.update(site);
 }
