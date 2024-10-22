@@ -26,19 +26,17 @@ app.views.Sidebar = class SidebarView extends app.View {
         return countOutput;
     }
 
-    add(site, isNew) {
+    add(site) {
         if ( this.parent.firstChild && this.parent.firstChild.tagName == "P" ) {
             this.parent.replaceChildren();
         }
         const hash = cyrb53(site.feedUrl);
         const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}${this.renderCount(site.numUnreadArticles)}</a></li>`;
         const listItem = this.htmlToNode(html);
-        if ( isNew ) {
-            listItem.firstChild.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.clickHandler(site, true, e.currentTarget.href);
-            });
-        }
+        listItem.firstChild.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.clickHandler(site, true, e.currentTarget.href);
+        });
         this.parent.appendChild(listItem);
     }
 

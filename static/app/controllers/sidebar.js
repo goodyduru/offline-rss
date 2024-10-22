@@ -20,7 +20,7 @@ app.controllers.Sidebar = class SidebarController extends app.Controller {
     }
 
     add(site) {
-        this.view.add(site, true);
+        this.view.add(site);
     }
 
     update(site) {
