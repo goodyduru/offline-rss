@@ -28,7 +28,7 @@ for i in "${!inputFiles[@]}";do
 done
 
 if [ "$oldOutputFile" != "" ]; then
-    diffOutput=$(diff "$oldOutputFile" "$outputFile")
+    diffOutput=$(diff -q "$oldOutputFile" "$outputFile")
     if [ "$diffOutput" == "" ];then
         # No difference between new and old file, remove new file.
         rm "$outputFile"
