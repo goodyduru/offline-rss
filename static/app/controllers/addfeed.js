@@ -85,6 +85,7 @@ app.controllers.AddFeed = class AddFeedController extends app.PageController {
             }
             this.searchModel.add(feedObj.articles[i]);
         }
+        this.searchModel.save();
         site.numUnreadArticles = numArticles;
         app.sidebarController.add(site);
         return true;

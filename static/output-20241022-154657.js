@@ -655,6 +655,70 @@ class Radix {
         }
         return postings;
     }
+
+    toString(node, result) {
+        if ( node === undefined || node == null ) {
+            node = this.root;
+            result = {keys: [], postings: [], children: []};
+        }
+        let key_id = result.keys.length;
+        result.keys.push(node.key);
+        if ( node.postings != null ) {
+            result.postings.push([]);
+            for ( let posting of node.postings ) {
+                result.postings[key_id].push(posting.id, posting.titlePopulation, posting.bodyPopulation);
+            }
+        } else {
+            result.postings.push(0);
+        }
+        if ( node.children != null ) {
+            result.children.push([]);
+            for ( let child of node.children ) {
+                let id = this.toString(child, result);
+                result.children[key_id].push(id);
+            }
+        } else {
+            result.children.push(0);
+        }
+        /**
+         * return {
+         *  keys: [],
+         *  postings = [[], []]
+         *  children = [[], []]
+         * }
+         */
+        if ( node == this.root ) {
+            return JSON.stringify(result);
+        }
+        return key_id;
+    }
+
+    fromObj(obj, node, key_id) {
+        if ( node === undefined || node === null ) {
+            node = this.root;
+            key_id = 0;
+        }
+        if ( obj.postings[key_id] != 0 ) {
+            let postings = obj.postings[key_id];
+            node.postings = [];
+            for ( let i = 0; i < postings.length; i += 3) {
+                let p = new Posting(postings[i], 0);
+                p.titlePopulation = postings[i+1];
+                p.bodyPopulation = postings[i+2];
+                node.postings.push(p);
+            }
+        }
+
+        if ( obj.children[key_id] != 0 ) {
+            let children = obj.children[key_id];
+            node.children = [];
+            for ( let child_id of children ) {
+                let c = new RadixNode(obj.keys[child_id]);
+                this.fromObj(obj, c, child_id);
+                node.children.push(c);
+            }
+        }
+    }
 }
 
 class App {
@@ -1103,6 +1167,7 @@ app.models.Search = class Search extends app.Model {
     constructor() {
         super();
         this.radix = new Radix();
+        this.radix2 = new Radix();
         /**
         * Stopwords gotten from lucene. A union of (https://github.com/apache/lucene/blob/5d5dddd10328a6131c5bd06c88fef4034971a8e9/lucene/analysis/common/src/java/org/apache/lucene/analysis/en/EnglishAnalyzer.java#L47) and (https://github.com/apache/lucene/blob/main/lucene/analysis/common/src/resources/org/apache/lucene/analysis/cjk/stopwords.txt).
         */
@@ -1195,6 +1260,12 @@ app.models.Search = class Search extends app.Model {
      * Creates the index of all the articles in the db.
      */
     async create() {
+        let index = localStorage.getItem("searchIndex");
+        if ( index != null ) {
+            let o = JSON.parse(index);
+            this.radix.fromObj(o);
+            return;
+        }
         let sites = await app.siteModel.getAll();
         for ( let site of sites ) {
             let done = false;
@@ -1210,6 +1281,7 @@ app.models.Search = class Search extends app.Model {
                 }
             }
         }
+        this.save();
     }
 
     /**
@@ -1220,6 +1292,11 @@ app.models.Search = class Search extends app.Model {
         for ( let id of ids ) {
             this.radix.delete(id);
         }
+    }
+
+    save() {
+        let index = this.radix.toString();
+        localStorage.setItem("searchIndex", index);
     }
 };
 
@@ -1495,6 +1572,7 @@ app.controllers.AddFeed = class AddFeedController extends app.PageController {
             }
             this.searchModel.add(feedObj.articles[i]);
         }
+        this.searchModel.save();
         site.numUnreadArticles = numArticles;
         app.sidebarController.add(site);
         return true;
@@ -2386,6 +2464,7 @@ app.Poll = class Poll {
                     }
                     app.searchModel.add(article);
                 }
+                app.searchModel.save();
                 siteData.numUnreadArticles = await app.articleModel.countUnreadInSite(site.id);
             }
 

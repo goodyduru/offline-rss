@@ -2,6 +2,7 @@ app.models.Search = class Search extends app.Model {
     constructor() {
         super();
         this.radix = new Radix();
+        this.radix2 = new Radix();
         /**
         * Stopwords gotten from lucene. A union of (https://github.com/apache/lucene/blob/5d5dddd10328a6131c5bd06c88fef4034971a8e9/lucene/analysis/common/src/java/org/apache/lucene/analysis/en/EnglishAnalyzer.java#L47) and (https://github.com/apache/lucene/blob/main/lucene/analysis/common/src/resources/org/apache/lucene/analysis/cjk/stopwords.txt).
         */
@@ -94,6 +95,12 @@ app.models.Search = class Search extends app.Model {
      * Creates the index of all the articles in the db.
      */
     async create() {
+        let index = localStorage.getItem("searchIndex");
+        if ( index != null ) {
+            let o = JSON.parse(index);
+            this.radix.fromObj(o);
+            return;
+        }
         let sites = await app.siteModel.getAll();
         for ( let site of sites ) {
             let done = false;
@@ -109,6 +116,7 @@ app.models.Search = class Search extends app.Model {
                 }
             }
         }
+        this.save();
     }
 
     /**
@@ -119,5 +127,10 @@ app.models.Search = class Search extends app.Model {
         for ( let id of ids ) {
             this.radix.delete(id);
         }
+    }
+
+    save() {
+        let index = this.radix.toString();
+        localStorage.setItem("searchIndex", index);
     }
 };

@@ -254,4 +254,68 @@ class Radix {
         }
         return postings;
     }
+
+    toString(node, result) {
+        if ( node === undefined || node == null ) {
+            node = this.root;
+            result = {keys: [], postings: [], children: []};
+        }
+        let key_id = result.keys.length;
+        result.keys.push(node.key);
+        if ( node.postings != null ) {
+            result.postings.push([]);
+            for ( let posting of node.postings ) {
+                result.postings[key_id].push(posting.id, posting.titlePopulation, posting.bodyPopulation);
+            }
+        } else {
+            result.postings.push(0);
+        }
+        if ( node.children != null ) {
+            result.children.push([]);
+            for ( let child of node.children ) {
+                let id = this.toString(child, result);
+                result.children[key_id].push(id);
+            }
+        } else {
+            result.children.push(0);
+        }
+        /**
+         * return {
+         *  keys: [],
+         *  postings = [[], []]
+         *  children = [[], []]
+         * }
+         */
+        if ( node == this.root ) {
+            return JSON.stringify(result);
+        }
+        return key_id;
+    }
+
+    fromObj(obj, node, key_id) {
+        if ( node === undefined || node === null ) {
+            node = this.root;
+            key_id = 0;
+        }
+        if ( obj.postings[key_id] != 0 ) {
+            let postings = obj.postings[key_id];
+            node.postings = [];
+            for ( let i = 0; i < postings.length; i += 3) {
+                let p = new Posting(postings[i], 0);
+                p.titlePopulation = postings[i+1];
+                p.bodyPopulation = postings[i+2];
+                node.postings.push(p);
+            }
+        }
+
+        if ( obj.children[key_id] != 0 ) {
+            let children = obj.children[key_id];
+            node.children = [];
+            for ( let child_id of children ) {
+                let c = new RadixNode(obj.keys[child_id]);
+                this.fromObj(obj, c, child_id);
+                node.children.push(c);
+            }
+        }
+    }
 }

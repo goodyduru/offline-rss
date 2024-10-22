@@ -57,6 +57,7 @@ app.Poll = class Poll {
                     }
                     app.searchModel.add(article);
                 }
+                app.searchModel.save();
                 siteData.numUnreadArticles = await app.articleModel.countUnreadInSite(site.id);
             }
 
