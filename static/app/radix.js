@@ -254,12 +254,8 @@ class Radix {
         }
         return postings;
     }
-
-    toString(node, result) {
-        if ( node === undefined || node == null ) {
-            node = this.root;
-            result = {keys: [], postings: [], children: []};
-        }
+    
+    #_serialize(node, result) {
         let key_id = result.keys.length;
         result.keys.push(node.key);
         if ( node.postings != null ) {
@@ -273,7 +269,7 @@ class Radix {
         if ( node.children != null ) {
             result.children.push([]);
             for ( let child of node.children ) {
-                let id = this.toString(child, result);
+                let id = this.#_serialize(child, result);
                 result.children[key_id].push(id);
             }
         } else {
@@ -286,17 +282,16 @@ class Radix {
          *  children = [[], []]
          * }
          */
-        if ( node == this.root ) {
-            return JSON.stringify(result);
-        }
         return key_id;
     }
 
-    fromObj(obj, node, key_id) {
-        if ( node === undefined || node === null ) {
-            node = this.root;
-            key_id = 0;
-        }
+    serialize() {
+        let result = {keys: [], postings: [], children: []};
+        this.#_serialize(this.root, result);
+        return result;
+    }
+
+    #_unserialize(obj, node, key_id) {
         if ( obj.postings[key_id] != 0 ) {
             let postings = obj.postings[key_id];
             node.postings = [];
@@ -313,9 +308,13 @@ class Radix {
             node.children = [];
             for ( let child_id of children ) {
                 let c = new RadixNode(obj.keys[child_id]);
-                this.fromObj(obj, c, child_id);
+                this.#_unserialize(obj, c, child_id);
                 node.children.push(c);
             }
         }
+    }
+
+    unserialize(obj) {
+        this.#_unserialize(obj, this.root, 0);
     }
 }

@@ -655,12 +655,8 @@ class Radix {
         }
         return postings;
     }
-
-    toString(node, result) {
-        if ( node === undefined || node == null ) {
-            node = this.root;
-            result = {keys: [], postings: [], children: []};
-        }
+    
+    #_serialize(node, result) {
         let key_id = result.keys.length;
         result.keys.push(node.key);
         if ( node.postings != null ) {
@@ -674,7 +670,7 @@ class Radix {
         if ( node.children != null ) {
             result.children.push([]);
             for ( let child of node.children ) {
-                let id = this.toString(child, result);
+                let id = this.#_serialize(child, result);
                 result.children[key_id].push(id);
             }
         } else {
@@ -687,17 +683,16 @@ class Radix {
          *  children = [[], []]
          * }
          */
-        if ( node == this.root ) {
-            return JSON.stringify(result);
-        }
         return key_id;
     }
 
-    fromObj(obj, node, key_id) {
-        if ( node === undefined || node === null ) {
-            node = this.root;
-            key_id = 0;
-        }
+    serialize() {
+        let result = {keys: [], postings: [], children: []};
+        this.#_serialize(this.root, result);
+        return result;
+    }
+
+    #_unserialize(obj, node, key_id) {
         if ( obj.postings[key_id] != 0 ) {
             let postings = obj.postings[key_id];
             node.postings = [];
@@ -714,10 +709,14 @@ class Radix {
             node.children = [];
             for ( let child_id of children ) {
                 let c = new RadixNode(obj.keys[child_id]);
-                this.fromObj(obj, c, child_id);
+                this.#_unserialize(obj, c, child_id);
                 node.children.push(c);
             }
         }
+    }
+
+    unserialize(obj) {
+        this.#_unserialize(obj, this.root, 0);
     }
 }
 
@@ -786,12 +785,13 @@ app.DB = class Db {
     constructor() {
         this.siteStoreName = "sites";
         this.articleStoreName = "articles";
+        this.searchStoreName = "search";
         this.db = null;
     }
 
     async open() {
         const DB_NAME = "offline-rss";
-        const DB_VERSION = 1;
+        const DB_VERSION = 2;
         return new Promise((resolve, reject) => {
             let req = indexedDB.open(DB_NAME, DB_VERSION);
             req.onsuccess = (evt) => {
@@ -803,18 +803,24 @@ app.DB = class Db {
                 reject();
             };
             req.onupgradeneeded = (evt) => {
-                const siteStore = evt.currentTarget.result.createObjectStore(this.siteStoreName, 
-                    {keyPath: 'id', autoIncrement: true});
-                const articleStore = evt.currentTarget.result.createObjectStore(this.articleStoreName, 
-                    {keyPath: 'id', autoIncrement: true});
-                siteStore.createIndex('feedUrl', 'feedUrl', {unique: true});
-                siteStore.createIndex('hash', 'hash', {unique: true});
-                siteStore.createIndex('nextPoll', 'nextPoll', {unique: false});
-                articleStore.createIndex('siteId', 'siteId', {unique: false});
-                articleStore.createIndex('hash', 'hash', {unique: true});
-                articleStore.createIndex('link', 'link', {unique: false});
-                articleStore.createIndex('isRead', 'isRead', {unique: false});
-                articleStore.createIndex('siteUnread', ['siteId', 'isRead'], {unique: false})
+                if ( evt.oldVersion < 1 ) {
+                    const siteStore = evt.currentTarget.result.createObjectStore(this.siteStoreName, 
+                        {keyPath: 'id', autoIncrement: true});
+                    const articleStore = evt.currentTarget.result.createObjectStore(this.articleStoreName, 
+                        {keyPath: 'id', autoIncrement: true});
+                    siteStore.createIndex('feedUrl', 'feedUrl', {unique: true});
+                    siteStore.createIndex('hash', 'hash', {unique: true});
+                    siteStore.createIndex('nextPoll', 'nextPoll', {unique: false});
+                    articleStore.createIndex('siteId', 'siteId', {unique: false});
+                    articleStore.createIndex('hash', 'hash', {unique: true});
+                    articleStore.createIndex('link', 'link', {unique: false});
+                    articleStore.createIndex('isRead', 'isRead', {unique: false});
+                    articleStore.createIndex('siteUnread', ['siteId', 'isRead'], {unique: false});
+                }
+
+                if ( evt.oldVersion < DB_VERSION ) {
+                    const searchStore = evt.currentTarget.result.createObjectStore(this.searchStoreName, {keyPath: 'id'});
+                }
             };
         });
     }
@@ -827,6 +833,11 @@ app.DB = class Db {
     getSiteStore(mode) {
         let tx = this.db.transaction(this.siteStoreName, mode);
         return tx.objectStore(this.siteStoreName);
+    }
+
+    getSearchStore(mode) {
+        let tx = this.db.transaction(this.searchStoreName, mode);
+        return tx.objectStore(this.searchStoreName);
     }
 };
 
@@ -1260,10 +1271,8 @@ app.models.Search = class Search extends app.Model {
      * Creates the index of all the articles in the db.
      */
     async create() {
-        let index = localStorage.getItem("searchIndex");
-        if ( index != null ) {
-            let o = JSON.parse(index);
-            this.radix.fromObj(o);
+        let loaded = await this.load();
+        if ( loaded ) {
             return;
         }
         let sites = await app.siteModel.getAll();
@@ -1295,8 +1304,20 @@ app.models.Search = class Search extends app.Model {
     }
 
     save() {
-        let index = this.radix.toString();
-        localStorage.setItem("searchIndex", index);
+        let index = this.radix.serialize();
+        index.id = 1;
+        const store = app.db.getSearchStore('readwrite');
+        super.update(store, index);
+    }
+
+    async load() {
+        const store = app.db.getSearchStore('readonly');
+        let index = await super.get(store, 'id', 1);
+        if ( index != null ) {
+            this.radix.unserialize(index);
+            return true;
+        }
+        return false;
     }
 };
 
