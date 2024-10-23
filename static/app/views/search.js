@@ -21,12 +21,12 @@ app.views.Search = class SearchView {
     bindInputChange(handleInputText) {
         this.searchInput.addEventListener("input", async (evt) => {
             const text = evt.target.value.trim();
-            if ( text == "" ) {
+            if ( text.length == 0 ) {
                 this.closeBox();
                 return;
             }
             let resultStrings = await handleInputText(text);
-            if ( resultStrings.length == 0 ) {
+            if ( resultStrings.length == 0 || text != evt.target.value.trim() ) {
                 return;
             }
             let resultHtml = `<ul>${resultStrings.join("")}</ul>`;
