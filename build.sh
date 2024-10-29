@@ -11,7 +11,7 @@ outputFile="output-$timestamp.js"
 touch "$outputFile"
 
 for i in "${!inputFiles[@]}";do
-    filePath="./app/${inputFiles[$i]}"
+    filePath="../app/${inputFiles[$i]}"
     if [ -f "$filePath" ]; then
         cat "$filePath" >> "$outputFile"
         if [ "$i" -lt $end ]; then
