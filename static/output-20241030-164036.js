@@ -49,7 +49,7 @@ async function parseAsRSS(text) {
     let link = tree.querySelector("channel>link");
     let description = tree.querySelector("channel>description");
     let result = getEmptyFeedObject();
-    result.title = ( title != null ) ? title.innerHTML : "";
+    result.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "").trim() : "";
     result.feedUrl = ( link != null ) ? link.innerHTML : "";
     result.description = ( description != null ) ? description.innerHTML : "";
     result.hash = cyrb53(text);
@@ -70,7 +70,7 @@ async function parseAsAtom(text) {
     let links = tree.querySelectorAll("feed>link");
     let result = getEmptyFeedObject();
     result.hash = cyrb53(text);
-    result.title = ( title != null ) ? title.innerHTML : "";
+    result.title = ( title != null ) ? title.innerHTML.replace("<![CDATA[", "").replace("]]>", "").trim() : "";
     if ( links.length == 1 ) {
         result.feedUrl = links[0].getAttribute("href");
         let u = new URL(result.feedUrl);
