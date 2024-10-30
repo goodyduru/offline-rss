@@ -59,5 +59,5 @@ func main() {
 	mux.HandleFunc("GET /feed/{id}", loadIndex)
 	mux.HandleFunc("GET /article/{id}", loadIndex)
 	mux.HandleFunc("GET /proxy", requestRSS)
-	log.Fatal(http.ListenAndServe(":5000", mux))
+	log.Fatal(http.ListenAndServe(":9000", mux))
 }
