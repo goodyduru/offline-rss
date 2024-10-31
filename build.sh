@@ -38,4 +38,5 @@ if [ "$oldOutputFile" != "" ]; then
     fi
 fi
 sed -i'.bak' -e "s/$oldOutputFile/$outputFile/" index.html
-rm index.html.bak # Remove backup file that was created
+sed -i'.bak' -e "s/$oldOutputFile/$outputFile/" sw.js
+rm index.html.bak sw.js.bak # Remove backup files that were created

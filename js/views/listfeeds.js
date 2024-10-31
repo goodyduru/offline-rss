@@ -97,7 +97,7 @@ app.views.ListFeeds = class ListFeedsView extends app.PageView {
         this.parent.replaceChildren();
         if ( sites.length == 0 ) {
             const message = "<p>You've not subscribed to any feed.</p>";
-            parent.insertAdjacentHTML("beforeend", message);
+            this.parent.insertAdjacentHTML("beforeend", message);
             return;
         }
         const table = this.htmlToNode("<table><thead><tr><th scope='col'>Feed Name</th><th></th><th></th></tr></thead><tbody></tbody></table>");
