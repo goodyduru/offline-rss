@@ -752,15 +752,6 @@ class App {
                 const registration = await navigator.serviceWorker.register("./sw.js", {
                     scope: "/",
                 });
-                registration.onupdatefound = () => {
-                    console.log("Installing");
-                    const installWorker = registration.installing;
-                    installWorker.onstatechange = () => {
-                        if ( installWorker.state == 'installed' && navigator.serviceWorker.controller ) {
-                            location.reload();
-                        }
-                    };
-                };
             } catch (error) {
                 console.log(`Registration failed with ${error}`);
             }

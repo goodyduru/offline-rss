@@ -11,7 +11,7 @@ self.addEventListener("install", (event) => {
             "/",
             "/index.html",
             "/main.css",
-            "/output-20241104-123817.js",
+            "/output-20241104-151357.js",
             "/webfonts/fa-solid-900.woff2",
         ]),
     );
@@ -64,10 +64,33 @@ const justFetch = async (request) => {
     return responseFromNetwork;
 };
 
+const getIndex = async (request) => {
+    try {
+        const responseFromNetwork = await fetch(request);
+        putInCache(request, responseFromNetwork.clone());
+        return responseFromNetwork;
+    } catch (error) {
+        let req = new Request("/");
+        const responseFromCache = await caches.match(req);
+        if (responseFromCache) {
+            return responseFromCache;
+        } else {
+            return new Response("Network error happened", {
+                status: 408,
+                headers: { "Content-Type": "text/plain" },
+            });
+        }
+    }
+}
+
+const staticUrls = ["/article/", "/add-feed", "/feed-list", "/feed/"];
+
 self.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
     if (url.pathname == "/proxy" && url.searchParams.get("sw") == "0" ) {
         event.respondWith(justFetch(event.request));
+    } else if ( url.pathname == "/" || url.pathname == "" || staticUrls.some((x) => url.pathname.startsWith(x)) ) {
+        event.respondWith(getIndex(event.request));
     } else {
         event.respondWith(
             cacheFirst(event.request),
