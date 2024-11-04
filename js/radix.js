@@ -200,7 +200,7 @@ class Radix {
         }
     }
 
-    startsWith(prefix) {
+    startsWith(prefix, exact) {
         let postings = [];
         let node = this.root;
         let i = 0;
@@ -235,12 +235,15 @@ class Radix {
                 continue;
             }
 
-            if ( x == substr.length && y < node_key.length ) {
+            if ( x == substr.length && y < node_key.length && !exact ) {
                 node = node.children[index];
                 break;
             }
 
             return null;
+        }
+        if ( exact ) {
+            return node.postings;
         }
         let stack = [node];
         while ( stack.length > 0 ) {

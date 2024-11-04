@@ -228,4 +228,22 @@ app.models.Article = class Article extends app.Model {
             };
         });
     }
+
+    /**
+     * Counts the number of articles in db
+     * @returns {Number} Number of articles
+     */
+    async count() {
+        return new Promise((resolve, reject) => {
+            const store = app.db.getArticleStore('readonly');
+            const req = store.count();
+            req.onsuccess = (event) => {
+                resolve(event.target.result);
+            };
+            req.onerror = (event) => {
+                console.error(event.target.error);
+                reject(0);
+            };
+        });
+    }
 };

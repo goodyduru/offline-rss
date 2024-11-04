@@ -3,7 +3,7 @@ cd static || exit
 oldOutputFile=""
 oldOutputFile=$(ls output-*)
 
-inputFiles=("parser.js" "feedfinder.js" "radix.js" "app.js" "db.js" "model.js" "models" "controller.js" "controllers" "view.js" "views" "router.js" "poll.js")
+inputFiles=("parser.js" "feedfinder.js" "radix.js" "countmap.js" "app.js" "db.js" "model.js" "models" "controller.js" "controllers" "view.js" "views" "router.js" "poll.js")
 end=$(( ${#inputFiles[@]}-1 )) # Get length of array
 
 timestamp=$(date "+%Y%m%d-%H%M%S")

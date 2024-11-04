@@ -8,7 +8,7 @@ app.controllers.Search = class SearchController extends app.Controller {
     }
 
     async handleTextChange(text) {
-        let articleIds = this.searchModel.get(text);
+        let articleIds = await this.searchModel.get(text);
         let result = [];
         if ( articleIds.length == 0 ) {
             this.view.closeBox();
