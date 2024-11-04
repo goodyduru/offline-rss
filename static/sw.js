@@ -1,49 +1,50 @@
+const SW_VERSION = "v1"
 const addResourcesToCache = async (resources) => {
-    const cache = await caches.open("v1");
+    const cache = await caches.open(SW_VERSION);
     await cache.addAll(resources);
 };
 
 self.addEventListener("install", (event) => {
+    self.skipWaiting();
     event.waitUntil(
         addResourcesToCache([
             "/",
             "/index.html",
             "/main.css",
-            "/output-20241031-161955.js",
+            "/output-20241104-123817.js",
             "/webfonts/fa-solid-900.woff2",
         ]),
     );
 });
 
-const enableNavigationPreload = async () => {
-    if (self.registration.navigationPreload) {
-        await self.registration.navigationPreload.enable();
-    }
+
+const deleteCache = async(key) => {
+    await caches.delete(key);
+};
+
+const deleteOldCaches = async () => {
+    const cacheKeepList = [SW_VERSION];
+    const keyList = await caches.keys();
+    const cachesToDelete = keyList.filter((key) => !cacheKeepList.includes(key));
+    await Promise.all(cachesToDelete.map(deleteCache));
 };
 
 self.addEventListener("activate", (event) => {
-    event.waitUntil(enableNavigationPreload());
+    event.waitUntil(deleteOldCaches());
 });
 
 const putInCache = async(request, response) => {
-    const cache = await caches.open("v1");
+    const cache = await caches.open(SW_VERSION);
     await cache.put(request, response);
 }
 
-const cacheFirst = async ({request, preloadResponsePromise}) => {
+const cacheFirst = async (request) => {
     if ( !request.url.startsWith('http') ) {
         return;
     }
     const responseFromCache = await caches.match(request);
     if (responseFromCache) {
         return responseFromCache;
-    }
-
-    const preloadResponse = await preloadResponsePromise;
-    if (preloadResponse) {
-        console.info("using preload response", preloadResponse);
-        putInCache(request, preloadResponse.clone());
-        return preloadResponse;
     }
 
     try {
@@ -58,12 +59,19 @@ const cacheFirst = async ({request, preloadResponsePromise}) => {
     }
 };
 
+const justFetch = async (request) => {
+    const responseFromNetwork = await fetch(request);
+    return responseFromNetwork;
+};
+
 self.addEventListener("fetch", (event) => {
-    event.respondWith(
-        cacheFirst({
-            request: event.request,
-            preloadResponsePromise: event.preloadResponse,
-        }),
-    );
+    const url = new URL(event.request.url);
+    if (url.pathname == "/proxy" && url.searchParams.get("sw") == "0" ) {
+        event.respondWith(justFetch(event.request));
+    } else {
+        event.respondWith(
+            cacheFirst(event.request),
+        );
+    }
 });
 

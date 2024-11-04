@@ -81,7 +81,7 @@ app.Poll = class Poll {
         }
         let response;
         try {
-            response = await fetch(`/proxy?u=${url}`, {
+            response = await fetch(`/proxy?u=${encodeURIComponent(url)}&sw=0`, {
                 headers: myHeaders
             });
         } catch {
