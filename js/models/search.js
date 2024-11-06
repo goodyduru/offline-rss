@@ -112,9 +112,9 @@ app.models.Search = class Search extends app.Model {
      */
     async create() {
         let loaded = await this.load();
-        /**if ( loaded ) {
+        if ( loaded ) {
             return;
-        }*/
+        }
         let sites = await app.siteModel.getAll();
         for ( let site of sites ) {
             let done = false;
