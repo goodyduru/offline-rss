@@ -11,8 +11,9 @@ self.addEventListener("install", (event) => {
             "/",
             "/index.html",
             "/main.css",
-            "/output-20241104-181720.js",
-            "/webfonts/fa-solid-900.woff2",
+            "/output-20241106-184101.js",
+            "/webfonts/fa-solid-subset-900.woff2",
+            "/webfonts/fa-solid-subset-900.ttf",
         ]),
     );
 });
