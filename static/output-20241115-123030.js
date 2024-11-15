@@ -1722,14 +1722,14 @@ app.controllers.Article = class ArticleController extends app.PageController {
         }
     }
 
-    async goByHistory(articleHash, historyState) {
-        let hash = parseInt(articleHash);
-        if ( isNaN(hash) ) {
+    async goByHistory(articleId, historyState) {
+        let id = parseInt(articleId);
+        if ( isNaN(id) ) {
             this.view.go();
             return;
         }
         if ( historyState == null ) {
-            let article = await app.articleModel.get(null, 'hash', hash);
+            let article = await app.articleModel.get(null, 'id', id);
             if ( article == null ) {
                 this.view.go()
             } else {
@@ -1738,8 +1738,8 @@ app.controllers.Article = class ArticleController extends app.PageController {
             }
         } else {
             let articles = await app.articleModel.getInRanges(historyState.idRanges);
-            let hashes = articles.map((article) => article.hash);
-            let index = hashes.indexOf(hash);
+            let ids = articles.map((article) => article.id);
+            let index = ids.indexOf(id);
             if ( articles.length > 0 && index > 0 ) {
                 this.update(articles[index]);
             }
@@ -1792,10 +1792,10 @@ app.controllers.ListArticles = class ListArticles extends app.ListController {
         super.go();
     }
 
-    async getSite(siteHash) {
-        let hash = parseInt(siteHash);
-        if ( !isNaN(hash) ) {
-            this.site = await this.siteModel.get('hash', hash);
+    async getSite(siteId) {
+        let id = parseInt(siteId);
+        if ( !isNaN(id) ) {
+            this.site = await this.siteModel.get('id', id);
         }
     }
 
@@ -1852,7 +1852,7 @@ app.controllers.Search = class SearchController extends app.Controller {
         }
         for ( let id of articleIds ) {
             let article = await this.articleModel.get(null, 'id', id);
-            let str = `<li><a href="/article/${article.hash}">${article.title}</a></li>`;
+            let str = `<li><a href="/article/${article.id}">${article.title}</a></li>`;
             result.push(str);
         }
         return result;
@@ -1960,7 +1960,7 @@ app.ListView = class ListView extends app.PageView {
             let article = this.articles[i]
             const anchorClass = ( article.isRead == 1 ) ? "" : "unread";
             const toggle = ( article.isRead == 1 ) ? "Mark as unread" : "Mark as read";
-            const html = `<li><a href="/article/${article.hash}" class="${anchorClass}">${article.title}</a><a href="#"><span>${toggle}</span></a></li>`;
+            const html = `<li><a href="/article/${article.id}" class="${anchorClass}">${article.title}</a><a href="#"><span>${toggle}</span></a></li>`;
             const listItem = this.htmlToNode(html);
             listItem.firstChild.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -2109,7 +2109,7 @@ app.views.Article = class ArticleView extends app.PageView {
         this.parent.insertAdjacentHTML("beforeend", articleLink);
         const nav = document.createElement("section");
         if ( this.index > 0 ) {
-            let prev = this.htmlToNode(`<a href="/article/${this.articles[this.index-1].hash}">Prev</a>`);
+            let prev = this.htmlToNode(`<a href="/article/${this.articles[this.index-1].id}">Prev</a>`);
             prev.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.clickHandler(this.index-1)
@@ -2118,7 +2118,7 @@ app.views.Article = class ArticleView extends app.PageView {
         }
 
         if ( this.index < (this.articles.length - 1) ) {
-            let next = this.htmlToNode(`<a href="/article/${this.articles[this.index+1].hash}">Next</a>`);
+            let next = this.htmlToNode(`<a href="/article/${this.articles[this.index+1].id}">Next</a>`);
             next.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.clickHandler(this.index+1);
@@ -2130,7 +2130,7 @@ app.views.Article = class ArticleView extends app.PageView {
 
     clickHandler(index) {
         this.index = index;
-        let url = `/article/${this.articles[index].hash}`;
+        let url = `/article/${this.articles[index].id}`;
         this.updateHandler(this.articles, index, this.idRanges, url);
         this.title = this.articles[index].title;
         this.render();
@@ -2181,7 +2181,7 @@ app.views.ListArticles = class ListArticlesView extends app.ListView {
         }
         if ( this.articles.length == 0 ) {
             if ( this.onlyUnread ) {
-                const divNode = this.htmlToNode(`<div class="empty"><p>There are no unread articles in this feed.</p><p><a class="btn" href="/feed/${this.site.hash}">View Read Articles</a></p></div>`);
+                const divNode = this.htmlToNode(`<div class="empty"><p>There are no unread articles in this feed.</p><p><a class="btn" href="/feed/${this.site.id}">View Read Articles</a></p></div>`);
                 const btn = divNode.lastChild.firstChild;
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
@@ -2393,7 +2393,7 @@ app.views.Sidebar = class SidebarView extends app.View {
             this.parent.replaceChildren();
         }
         const hash = cyrb53(site.feedUrl);
-        const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}${this.renderCount(site.numUnreadArticles)}</a></li>`;
+        const html = `<li><a href="/feed/${site.id}" id="feed-${hash}">${site.title}${this.renderCount(site.numUnreadArticles)}</a></li>`;
         const listItem = this.htmlToNode(html);
         listItem.firstChild.addEventListener('click', (e) => {
             e.preventDefault();
@@ -2424,7 +2424,7 @@ app.views.Sidebar = class SidebarView extends app.View {
             e.preventDefault();
             this.clickHandler(site, true, e.currentTarget.href);
         });
-        anchor.setAttribute('href', site.hash);
+        anchor.setAttribute('href', site.id);
         anchor.innerHTML = content;
     }
     
@@ -2477,12 +2477,12 @@ app.Router = class Router {
             app.listFeedsController.go();
         });
     
-        this.template('feed', function(hash) {
-            app.listArticlesController.go(hash);
+        this.template('feed', function(id) {
+            app.listArticlesController.go(id);
         });
     
-        this.template('article', function(hash, historyState) {
-            app.singleArticleController.go(hash, historyState);
+        this.template('article', function(id, historyState) {
+            app.singleArticleController.go(id, historyState);
         })
     
         this.route('', 'home');

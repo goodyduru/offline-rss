@@ -33,14 +33,14 @@ app.controllers.Article = class ArticleController extends app.PageController {
         }
     }
 
-    async goByHistory(articleHash, historyState) {
-        let hash = parseInt(articleHash);
-        if ( isNaN(hash) ) {
+    async goByHistory(articleId, historyState) {
+        let id = parseInt(articleId);
+        if ( isNaN(id) ) {
             this.view.go();
             return;
         }
         if ( historyState == null ) {
-            let article = await app.articleModel.get(null, 'hash', hash);
+            let article = await app.articleModel.get(null, 'id', id);
             if ( article == null ) {
                 this.view.go()
             } else {
@@ -49,8 +49,8 @@ app.controllers.Article = class ArticleController extends app.PageController {
             }
         } else {
             let articles = await app.articleModel.getInRanges(historyState.idRanges);
-            let hashes = articles.map((article) => article.hash);
-            let index = hashes.indexOf(hash);
+            let ids = articles.map((article) => article.id);
+            let index = ids.indexOf(id);
             if ( articles.length > 0 && index > 0 ) {
                 this.update(articles[index]);
             }

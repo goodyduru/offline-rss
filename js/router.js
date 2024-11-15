@@ -35,12 +35,12 @@ app.Router = class Router {
             app.listFeedsController.go();
         });
     
-        this.template('feed', function(hash) {
-            app.listArticlesController.go(hash);
+        this.template('feed', function(id) {
+            app.listArticlesController.go(id);
         });
     
-        this.template('article', function(hash, historyState) {
-            app.singleArticleController.go(hash, historyState);
+        this.template('article', function(id, historyState) {
+            app.singleArticleController.go(id, historyState);
         })
     
         this.route('', 'home');

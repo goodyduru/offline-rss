@@ -22,7 +22,7 @@ app.views.ListArticles = class ListArticlesView extends app.ListView {
         }
         if ( this.articles.length == 0 ) {
             if ( this.onlyUnread ) {
-                const divNode = this.htmlToNode(`<div class="empty"><p>There are no unread articles in this feed.</p><p><a class="btn" href="/feed/${this.site.hash}">View Read Articles</a></p></div>`);
+                const divNode = this.htmlToNode(`<div class="empty"><p>There are no unread articles in this feed.</p><p><a class="btn" href="/feed/${this.site.id}">View Read Articles</a></p></div>`);
                 const btn = divNode.lastChild.firstChild;
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();

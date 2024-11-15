@@ -16,7 +16,7 @@ app.controllers.Search = class SearchController extends app.Controller {
         }
         for ( let id of articleIds ) {
             let article = await this.articleModel.get(null, 'id', id);
-            let str = `<li><a href="/article/${article.hash}">${article.title}</a></li>`;
+            let str = `<li><a href="/article/${article.id}">${article.title}</a></li>`;
             result.push(str);
         }
         return result;

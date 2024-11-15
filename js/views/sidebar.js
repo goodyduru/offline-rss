@@ -31,7 +31,7 @@ app.views.Sidebar = class SidebarView extends app.View {
             this.parent.replaceChildren();
         }
         const hash = cyrb53(site.feedUrl);
-        const html = `<li><a href="/feed/${site.hash}" id="feed-${hash}">${site.title}${this.renderCount(site.numUnreadArticles)}</a></li>`;
+        const html = `<li><a href="/feed/${site.id}" id="feed-${hash}">${site.title}${this.renderCount(site.numUnreadArticles)}</a></li>`;
         const listItem = this.htmlToNode(html);
         listItem.firstChild.addEventListener('click', (e) => {
             e.preventDefault();
@@ -62,7 +62,7 @@ app.views.Sidebar = class SidebarView extends app.View {
             e.preventDefault();
             this.clickHandler(site, true, e.currentTarget.href);
         });
-        anchor.setAttribute('href', site.hash);
+        anchor.setAttribute('href', site.id);
         anchor.innerHTML = content;
     }
     

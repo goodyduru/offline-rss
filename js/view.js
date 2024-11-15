@@ -65,7 +65,7 @@ app.ListView = class ListView extends app.PageView {
             let article = this.articles[i]
             const anchorClass = ( article.isRead == 1 ) ? "" : "unread";
             const toggle = ( article.isRead == 1 ) ? "Mark as unread" : "Mark as read";
-            const html = `<li><a href="/article/${article.hash}" class="${anchorClass}">${article.title}</a><a href="#"><span>${toggle}</span></a></li>`;
+            const html = `<li><a href="/article/${article.id}" class="${anchorClass}">${article.title}</a><a href="#"><span>${toggle}</span></a></li>`;
             const listItem = this.htmlToNode(html);
             listItem.firstChild.addEventListener('click', (e) => {
                 e.preventDefault();

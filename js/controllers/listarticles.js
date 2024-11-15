@@ -26,10 +26,10 @@ app.controllers.ListArticles = class ListArticles extends app.ListController {
         super.go();
     }
 
-    async getSite(siteHash) {
-        let hash = parseInt(siteHash);
-        if ( !isNaN(hash) ) {
-            this.site = await this.siteModel.get('hash', hash);
+    async getSite(siteId) {
+        let id = parseInt(siteId);
+        if ( !isNaN(id) ) {
+            this.site = await this.siteModel.get('id', id);
         }
     }
 

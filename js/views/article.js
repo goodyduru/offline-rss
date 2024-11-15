@@ -52,7 +52,7 @@ app.views.Article = class ArticleView extends app.PageView {
         this.parent.insertAdjacentHTML("beforeend", articleLink);
         const nav = document.createElement("section");
         if ( this.index > 0 ) {
-            let prev = this.htmlToNode(`<a href="/article/${this.articles[this.index-1].hash}">Prev</a>`);
+            let prev = this.htmlToNode(`<a href="/article/${this.articles[this.index-1].id}">Prev</a>`);
             prev.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.clickHandler(this.index-1)
@@ -61,7 +61,7 @@ app.views.Article = class ArticleView extends app.PageView {
         }
 
         if ( this.index < (this.articles.length - 1) ) {
-            let next = this.htmlToNode(`<a href="/article/${this.articles[this.index+1].hash}">Next</a>`);
+            let next = this.htmlToNode(`<a href="/article/${this.articles[this.index+1].id}">Next</a>`);
             next.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.clickHandler(this.index+1);
@@ -73,7 +73,7 @@ app.views.Article = class ArticleView extends app.PageView {
 
     clickHandler(index) {
         this.index = index;
-        let url = `/article/${this.articles[index].hash}`;
+        let url = `/article/${this.articles[index].id}`;
         this.updateHandler(this.articles, index, this.idRanges, url);
         this.title = this.articles[index].title;
         this.render();
