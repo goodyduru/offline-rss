@@ -1379,7 +1379,9 @@ app.models.Search = class Search extends app.Model {
     delete(ids) {
         for ( let id of ids ) {
             this.radix.delete(id);
+            this.countMap.delete(id);
         }
+        this.save();
     }
 
     save() {

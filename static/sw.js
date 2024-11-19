@@ -11,7 +11,7 @@ self.addEventListener("install", (event) => {
             "/",
             "/index.html",
             "/main.css",
-            "/output-20241115-123030.js",
+            "/output-20241119-143805.js",
             "/webfonts/fa-solid-subset-900.woff2",
             "/webfonts/fa-solid-subset-900.ttf",
         ]),
